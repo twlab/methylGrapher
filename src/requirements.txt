@@ -1,1 +1,3 @@
-../../ggWGBS/src/requirements.txt
+pgzip
+sqlite3
+matplotlib
