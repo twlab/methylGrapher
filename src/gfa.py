@@ -8,9 +8,6 @@ import sqlite3
 
 
 
-
-
-
 class GFAError(RuntimeError):
 
     def __init__(self, msg=""):
@@ -449,6 +446,8 @@ def add_lambda_genome_to_gfa(igfa, ogfa, lambda_ref):
 
     max_segid += 1
     fogfa.write(f"S\t{max_segid}\t{lseq}\n")
+
+    return max_segid
 
 
 

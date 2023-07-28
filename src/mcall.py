@@ -229,7 +229,6 @@ def call(gfa, alignment, methylation_output, minimum_identity=50, minimum_mapq=2
 
 
                 if alignment_tag is None or original_bs_read is None or read_conversion_type is None:
-                    # TODO Report
                     continue
 
                 qso, qeo, rl, indels = cs_tag_parse(alignment_tag)
@@ -242,7 +241,6 @@ def call(gfa, alignment, methylation_output, minimum_identity=50, minimum_mapq=2
 
                 path_sequences = []
                 for pi in range(len(path[0])):
-                    # TODO use batched query for GFA_DB class
                     segmentID = path[0][pi]
                     seq = gfa.get_sequence_by_segment_ID(segmentID)
                     if path[1][pi] < 0:
@@ -457,8 +455,8 @@ def call(gfa, alignment, methylation_output, minimum_identity=50, minimum_mapq=2
 
                 duration = time.time() - ts
                 #print(f"Total time: {duration:.7f}s")
-                print("Low confident rate: %0.2f%%, Error rate: %0.2f%%" % (100*counter2/counter1, 100*counter3/counter1))
-                print("Total time: %0.8fs" % (duration))
+                # print("Low confident rate: %0.2f%%, Error rate: %0.2f%%" % (100*counter2/counter1, 100*counter3/counter1))
+                # print("Total time: %0.8fs" % (duration))
 
                 #duration6 = duration - duration5
                 #duration5 = duration5 - duration4
@@ -467,7 +465,10 @@ def call(gfa, alignment, methylation_output, minimum_identity=50, minimum_mapq=2
                 #duration2 = duration2 - duration1
                 #print(f"{int(duration1/duration*100)} {int(duration2/duration*100)} {int(duration3/duration*100)} {int(duration4/duration*100)} {int(duration5/duration*100)}  {int(duration6/duration*100)} ")
                 #print()
-        pass
+
+    # Low confident count, Error count
+    return counter1, counter2, counter3
+
 
 
 def mcall_tmp_to_final(tmp_fh, out_fh):

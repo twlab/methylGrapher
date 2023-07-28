@@ -126,9 +126,11 @@ def gfa_converter(input_gfa, output_file_prefix, compress=True, thread=1):
 
 class ConfigParser(object):
 
-    def __init__(self, filename):
+    def __init__(self, filename, search=True):
         self._path = filename
         self._data = {}
+        if search:
+            self.find()
         self.parse()
 
     def parse(self):
@@ -208,7 +210,9 @@ def fastq_converter(fq1, fq2, workdir, compress=True, thread=1):
     report_file_handle = open(f"{workdir}/report.txt", 'a')
     # read_record_file_handle = pgzip.open(f"{workdir}/read_record.gz", 'wt', thread=thread)
 
-    for read_count, fq, in enumerate([fq1, fq2]):
+    read_count = 0
+    for fq in (fq1, fq2):
+        read_count += 1
 
         for conversion_str in ['C2T', 'G2A']:
             conversion = conversion_str.split('2')
@@ -217,7 +221,7 @@ def fastq_converter(fq1, fq2, workdir, compress=True, thread=1):
             input_fastq = fq
             if fq == None:
                 continue
-            output_fastq = f"{workdir}/{conversion_str}.R{read_count+1}.fastq"
+            output_fastq = f"{workdir}/{conversion_str}.R{read_count}.fastq"
 
             input_fastq_fh = None
             input_compress = utils.isGzip(input_fastq)
@@ -261,7 +265,7 @@ def fastq_converter(fq1, fq2, workdir, compress=True, thread=1):
                 #    read_record_file_handle.write(newl)
             i+=1
 
-        report_file_handle.write(f"Total reads for R{read_count+1}: {int(i/4)}\n")
+        report_file_handle.write(f"Total reads for R{read_count}: {int(i/4)}\n")
 
     report_file_handle.close()
 

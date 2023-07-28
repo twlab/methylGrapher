@@ -15,6 +15,7 @@ import sys
 import gfa
 import mcall
 import utility
+import postprocessingQC
 
 
 conversion_types = ["G2A", "C2T"]
@@ -22,8 +23,7 @@ conversion_types = ["G2A", "C2T"]
 
 # TODO
 # 1. Add fastuniq
-# 2. Put mcall logging into report
-# 4. Example for running the pipeline
+# Remove OLD unused code
 
 
 help_txt = """
@@ -84,11 +84,8 @@ if __name__ == "__main__":
     args = sys.argv
     args.pop(0)
 
-
     # Find config file
     config = utility.ConfigParser("config.ini")
-    config.find()
-    config.parse()
     vg_path = config.get("default", "vg_path")
     thread = config.get("default", "thread")
     try:
@@ -116,13 +113,13 @@ if __name__ == "__main__":
         else:
             print(f"Unknown argument: {arg}")
             sys.exit(1)
+
     if "thread" in kvargs:
         thread = int(kvargs["thread"])
         del kvargs["thread"]
     if "t" in kvargs:
         thread = int(kvargs["t"])
         del kvargs["t"]
-
 
 
     if command in ["help", "-h", "--help"]:
@@ -136,13 +133,16 @@ if __name__ == "__main__":
         lambda_ref = kvargs["lp"]
         prefix = kvargs["prefix"]
 
+        fn_report = prefix + ".prepare.genome.report.txt"
+        freport = open(fn_report, "w")
 
-        original_gfa_with_lambda = prefix+".gfa"
-        gfa_c2t = prefix + ".C2T.gfa"
-        gfa_g2a = prefix + ".G2A.gfa"
+        original_gfa_with_lambda = prefix + ".wl.gfa"
+        gfa_c2t = prefix + ".wl.C2T.gfa"
+        gfa_g2a = prefix + ".wl.G2A.gfa"
 
-
-        gfa.add_lambda_genome_to_gfa(original_gfa_file_path, original_gfa_with_lambda, lambda_ref)
+        lambda_segment_id = gfa.add_lambda_genome_to_gfa(original_gfa_file_path, original_gfa_with_lambda, lambda_ref)
+        freport.write(f"Insert lambda phage genome into genome graph as segment: {lambda_segment_id}\n")
+        freport.close()
 
         g = gfa.GraphicalFragmentAssemblyMemory()
         g.parse(original_gfa_with_lambda, keep_link=True)
@@ -158,14 +158,15 @@ if __name__ == "__main__":
 
         for gfa_file_path in [gfa_c2t, gfa_g2a]:
             index_prefix = gfa_file_path[:-4]
-            cmd = f"{vg_path} autoindex -g {gfa_file_path} -p {index_prefix} -w giraffe -t {thread}"
+            cmd = f"{vg_path} autoindex -g {gfa_file_path} -p {index_prefix} -w giraffe -t {thread} >> {fn_report} 2>&1"
             os.system(cmd)
+
+        sys.exit(0)
 
 
 
     # Convert genome graph (in gfa format) to full C->T and G->A converted gfa file.
     if command == "preparelibrary":
-        # TODO fastuniq
         fq1 = kvargs["fq1"]
         fq2 = kvargs.get("fq2", None)
         work_dir = kvargs["work_dir"]
@@ -183,8 +184,10 @@ if __name__ == "__main__":
     # Align converted FASTQ files to converted GFA files.
     if command == "align":
         work_dir = kvargs["work_dir"]
-        index_prefix_ct = kvargs["index_prefix_ct"]
-        index_prefix_ga = kvargs["index_prefix_ga"]
+        index_prefix = kvargs["index_prefix"]
+
+        index_prefix_ct = index_prefix + ".wl.C2T"
+        index_prefix_ga = index_prefix + ".wl.G2A"
 
         read1_alignment_type = ["C2T"]
         read2_alignment_type = ["G2A"]
@@ -201,10 +204,8 @@ if __name__ == "__main__":
         for i in range(10):
             alignment_out = f"{work_dir}/alignment.{i}.{output_format}"
             alignment_file_path.append(alignment_out)
-            if not os.path.exists(alignment_out):
-                fh = open(alignment_out, "w")
-            else:
-                fh = open(alignment_out, "a")
+
+            fh = open(alignment_out, "w")
             alignment_outs[i] = fh
 
         for ref_type in conversion_types:
@@ -212,6 +213,7 @@ if __name__ == "__main__":
                 for read_type2 in read2_alignment_type:
                     if read_type1 == read_type2:
                         continue
+                    # TODO change log for single end mode
                     print(f"Aligning R1({read_type1}) & R2({read_type2}) on reference({ref_type})")
 
                     fq1 = f"{work_dir}/{read_type1}.R1.fastq.gz"
@@ -257,6 +259,7 @@ if __name__ == "__main__":
 
         for fn in alignment_file_path:
             cmd = f"sort -o {fn} {fn}"
+            os.system(cmd)
 
         sys.exit(0)
 
@@ -265,7 +268,7 @@ if __name__ == "__main__":
     # Call methylation
     if command == "methylcall":
         work_dir = kvargs["work_dir"]
-        gfa_file = kvargs["gfa"]
+        gfa_file = kvargs["index_prefix"] + ".wl.gfa"
 
         alignment_fp = []
         for i in range(10):
@@ -283,7 +286,11 @@ if __name__ == "__main__":
         for fn in methylation_tmp_file_names:
             methylation_tmp_output.append(open(fn, "w"))
 
-        mcall.call(gfa_instance, alignment_fp, methylation_tmp_output)
+        total_alignment_count, low_confidence_count, error_count = mcall.call(gfa_instance, alignment_fp, methylation_tmp_output)
+        freport = open(f"{work_dir}/report.txt", "a")
+        freport.write(f"Total aligned reads: {total_alignment_count}\n")
+        freport.write(f"Low confidence count (low quality or multi-mapped alignment): {low_confidence_count}\n")
+        freport.write(f"Inconsistent alignment entries: {error_count}\n")
 
         del gfa_instance
 
@@ -298,10 +305,23 @@ if __name__ == "__main__":
         for fn in methylation_tmp_output:
             mcall.mcall_tmp_to_final(fn, final_out)
 
+
         for fn in methylation_tmp_file_names:
             os.remove(fn)
 
+        sys.exit(0)
 
+    if command == "qc":
+        # TODO run QC
+        work_dir = kvargs["work_dir"]
+
+        mcalled = f"{work_dir}/graph.methyl"
+
+        lsid, r = postprocessingQC.estimate_conversion_rate(mcalled)
+        print(f"Lambda Phage Segment ID: {lsid}")
+        print(f"Conversion rate: {r*100:.2f}%")
+
+        sys.exit(0)
 
 
 
