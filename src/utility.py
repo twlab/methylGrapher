@@ -204,7 +204,7 @@ class SystemExecute(object):
         self._pool = []
 
 
-def fastq_converter(fq1, fq2, workdir, compress=True, thread=1):
+def fastq_converter(fq1, fq2, workdir, compress=True, thread=1, directional=True):
     utils = Utility()
 
     report_file_handle = open(f"{workdir}/report.txt", 'a')
@@ -215,6 +215,13 @@ def fastq_converter(fq1, fq2, workdir, compress=True, thread=1):
         read_count += 1
 
         for conversion_str in ['C2T', 'G2A']:
+
+            if directional:
+                if read_count == 1 and conversion_str == 'G2A':
+                    continue
+                if read_count == 2 and conversion_str == 'C2T':
+                    continue
+
             conversion = conversion_str.split('2')
 
 

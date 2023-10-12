@@ -149,7 +149,10 @@ class GraphicalFragmentAssemblyMemory(GraphicalFragmentAssemblyAbstract):
         self._segment = {}
         self._walk = {}
 
+        self._original_gfa_path = ""
+
     def parse(self, gfa_file, keep_tag=False, keep_link=False):
+        self._original_gfa_path = gfa_file
         # TODO when not keep_tag, keep_link, forbid to write GFA and access those two
         for l in open(gfa_file):
             if l[0] not in "HSL":
@@ -213,7 +216,8 @@ class GraphicalFragmentAssemblyMemory(GraphicalFragmentAssemblyAbstract):
         # Remove base2 SNV when base1 is present
         replacement = self.get_replacement_SNV(replace_base1, replace_base2)
 
-        with open(output_file, "w") as f:
+        replaced_gfa_file = open(output_file, "w")
+        with replaced_gfa_file as f:
             f.write("H\t" + self._header + "\n")
             for segID in self._segment:
                 if segID in replacement:
@@ -230,6 +234,107 @@ class GraphicalFragmentAssemblyMemory(GraphicalFragmentAssemblyAbstract):
                     s2 = s1s2[1]
                     f.write(f"L\t{segID}\t{s1}\t{cID}\t{s2}\t{cigar}\n")
 
+            with open(self._original_gfa_path) as f:
+                for l in f:
+                    if l[0] not in "W":
+                        continue
+                    l = l.strip().split("\t")
+                    # l[6] = l[6][:100]
+                    walk = l[6]
+                    walk_splited = []
+                    node = ["", ""]
+                    for c in walk:
+                        if c in "><":
+                            if node[0] != "" and node[1] != "":
+                                if node[1] in replacement:
+                                    node[1] = replacement[node[1]]
+                                walk_splited.append(node[0]+node[1])
+                            node = ["", ""]
+                            node[0] = c
+                            continue
+                        node[1] += c
+                    if node[1] in replacement:
+                        node[1] = replacement[node[1]]
+                    walk_splited.append(node[0]+node[1])
+
+                    l[6] = "".join(walk_splited)
+
+                    # replaced_gfa_file.write(l)
+                    replaced_gfa_file.write("\t".join(l) + "\n")
+
+
+class GraphicalFragmentAssemblyMemorySegmentOptimized(GraphicalFragmentAssemblyAbstract):
+
+    def __init__(self):
+        super().__init__()
+
+    def clear(self):
+        self._numeric_segment_ID = False
+        self._segment = {}
+        self._SN_segments = {
+            "A": set(),
+            "T": set(),
+            "C": set(),
+            "G": set(),
+        }
+
+        self._original_gfa_path = ""
+
+    def parse(self, gfa_file, keep_tag=False, keep_link=False):
+        if keep_link:
+            raise NotImplementedError
+        if keep_tag:
+            raise NotImplementedError
+        self._original_gfa_path = gfa_file
+
+        """
+        Well, it does take less memory, but it is slower in look up
+        numeric_segment_ID = True
+        for l in open(gfa_file):
+            if not l.startswith("S"):
+                continue
+            l = l.strip().split("\t")
+            rt, segID, seq, *tags = l
+
+            try:
+                int(segID)
+            except ValueError:
+                numeric_segment_ID = False
+                break
+
+        self._numeric_segment_ID = numeric_segment_ID
+        """
+
+        for l in open(gfa_file):
+            if not l.startswith("S"):
+                continue
+
+            l = l.strip().split("\t")
+
+            rt, segID, seq, *tags = l
+
+            #if self._numeric_segment_ID:
+            #    segID = int(segID)
+            seq = seq.upper()
+
+            if seq in self._SN_segments:
+                self._SN_segments[seq].add(segID)
+            else:
+                self._segment[segID] = seq
+
+
+
+    def get_sequence_by_segment_ID(self, segment_ID):
+        for sn in "ATCG":
+            if segment_ID in self._SN_segments[sn]:
+                return sn
+        return self._segment[segment_ID]
+
+    def get_sequences_by_segment_ID(self, segment_IDs):
+        res = {}
+        for sID in segment_IDs:
+            res[sID] = self.get_sequence_by_segment_ID(sID)
+        return res
 
 
 
@@ -270,6 +375,9 @@ class GraphicalFragmentAssemblySQL(GraphicalFragmentAssemblyAbstract):
         query.append('CREATE TABLE IF NOT EXISTS segment ('
             'name TEXT PRIMARY KEY, '
             'sequence TEXT, '
+            'SN TEXT, '
+            'SR INT, '
+            'SO INT, '
             'tag TEXT'
             ')'
         )
@@ -329,13 +437,30 @@ class GraphicalFragmentAssemblySQL(GraphicalFragmentAssemblyAbstract):
 
             if l[0] == "S":
                 rt, segID, seq, *tags = l
-                tags = "\t".join(tags)
+                sn = None
+                sr = None
+                so = None
+
+                other_tags = []
+                for t in tags:
+                    if t.startswith("SN:Z:"):
+                        sn = t[5:]
+                    elif t.startswith("SR:i:"):
+                        sr = int(t[5:])
+                    elif t.startswith("SO:i:"):
+                        so = int(t[5:])
+                    else:
+                        other_tags.append(t)
+
+                tags = "\t".join(other_tags)
+                if tags == "":
+                    tags = None
                 # print(segID, len(seq), tags)
                 # print(l)
                 # print()
                 self.execute(
-                    'INSERT INTO segment (name, sequence, tag) VALUES (?, ?, ?)',
-                    (segID, seq, tags)
+                    'INSERT INTO segment (name, sequence, tag, sn, sr, so) VALUES (?, ?, ?, ?, ?, ?)',
+                    (segID, seq, tags, sn, sr, so)
                 )
             elif l[0] == "L":
                 rt, pID, s1, cID, s2, cigar, *tags = l
@@ -425,6 +550,77 @@ class GraphicalFragmentAssemblySQL(GraphicalFragmentAssemblyAbstract):
             res.append(tuple(i))
         return res
 
+    def find_parallel_segment_on_ref(self, segment_ID):
+
+        fail = False
+
+        # Find children that are on reference
+        q1 = f"""
+            SELECT link.childID, link.strand, segment.SN, segment.SO, segment.sequence FROM link
+            LEFT JOIN segment 
+            ON segment.name == link.childID
+            WHERE link.parentID == '{segment_ID}' and segment.SR == 0
+        """
+
+        child_res = None
+        for i in self.execute(q1):
+            if child_res is not None:
+                fail = True
+                break
+            child_res = list(i)
+
+        if fail or child_res is None:
+            return None
+
+        q2 = f"""
+            SELECT link.parentID, link.strand, segment.SN, segment.SO, segment.sequence FROM link
+            LEFT JOIN segment 
+            ON segment.name == link.parentID
+            WHERE link.childID == '{segment_ID}' and segment.SR == 0
+        """
+
+        parent_res = None
+        for i in self.execute(q2):
+            if parent_res is not None:
+                fail = True
+                break
+            parent_res = list(i)
+
+        if fail or parent_res is None:
+            return None
+
+        q3 = f"""
+                SELECT link.childID, link.strand, segment.SN, segment.SO, segment.sequence FROM link
+                LEFT JOIN segment 
+                ON segment.name == link.childID
+                WHERE (link.parentID == '{parent_res[0]}' AND segment.SR == 0)
+            """
+
+        carried_over_segment_candidate = []
+        for i in self.execute(q3):
+            carried_over_segment_candidate.append(list(i))
+
+        q4 = f"""
+                SELECT link.parentID, link.strand, segment.SN, segment.SO, segment.sequence FROM link
+                LEFT JOIN segment 
+                ON segment.name == link.parentID
+                WHERE (link.childID == '{child_res[0]}' AND segment.SR == 0)
+            """
+
+        carried_over_segment = []
+        for i in self.execute(q4):
+            sid = list(i)[0]
+            for cosc in carried_over_segment_candidate:
+                if cosc[0] == sid:
+                    carried_over_segment.append(cosc)
+
+
+        print("LIFT OVER")
+        print(parent_res, "\n", child_res)
+        print(carried_over_segment)
+        res = []
+        return res
+
 
 
 def add_lambda_genome_to_gfa(igfa, ogfa, lambda_ref):
@@ -446,6 +642,7 @@ def add_lambda_genome_to_gfa(igfa, ogfa, lambda_ref):
 
     max_segid += 1
     fogfa.write(f"S\t{max_segid}\t{lseq}\n")
+    fogfa.write(f"W	LambdaPhage	0	lambdaphagegenome	0	{len(lseq)}	>{max_segid}\n")
 
     return max_segid
 

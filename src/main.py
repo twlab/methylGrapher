@@ -15,10 +15,9 @@ import sys
 import gfa
 import mcall
 import utility
-import postprocessingQC
 
 
-conversion_types = ["G2A", "C2T"]
+conversion_types = ["C2T", "G2A"]
 
 
 # TODO
@@ -142,7 +141,7 @@ if __name__ == "__main__":
 
         lambda_segment_id = gfa.add_lambda_genome_to_gfa(original_gfa_file_path, original_gfa_with_lambda, lambda_ref)
         freport.write(f"Insert lambda phage genome into genome graph as segment: {lambda_segment_id}\n")
-        freport.close()
+
 
         g = gfa.GraphicalFragmentAssemblyMemory()
         g.parse(original_gfa_with_lambda, keep_link=True)
@@ -159,8 +158,19 @@ if __name__ == "__main__":
         for gfa_file_path in [gfa_c2t, gfa_g2a]:
             index_prefix = gfa_file_path[:-4]
             cmd = f"{vg_path} autoindex -g {gfa_file_path} -p {index_prefix} -w giraffe -t {thread} >> {fn_report} 2>&1"
-            os.system(cmd)
+            # os.system(cmd)
 
+            se = utility.SystemExecute()
+            fout, flog = se.execute(cmd, stdout=None, stderr=None)
+            for line in fout:
+                line = line.decode("utf-8")
+                freport.write(line)
+            for line in flog:
+                line = line.decode("utf-8")
+                freport.write(line)
+            se.wait()
+
+        freport.close()
         sys.exit(0)
 
 
@@ -176,7 +186,14 @@ if __name__ == "__main__":
             compress = True
         else:
             compress = False
-        utility.fastq_converter(fq1, fq2, work_dir, compress=compress, thread=thread)
+
+        directional = kvargs.get("directional", "Y")
+        if directional.lower() == "y":
+            directional = True
+        else:
+            directional = False
+        utility.fastq_converter(fq1, fq2, work_dir, compress=compress, thread=thread, directional=directional)
+
 
         sys.exit(0)
 
@@ -192,7 +209,7 @@ if __name__ == "__main__":
         read1_alignment_type = ["C2T"]
         read2_alignment_type = ["G2A"]
 
-        if kvargs.get("non_directional", "n") in "yY":
+        if kvargs.get("directional", "y") in "nN":
             read1_alignment_type = conversion_types
             read2_alignment_type = conversion_types
 
@@ -231,7 +248,7 @@ if __name__ == "__main__":
 
                     alignment_log = f"{work_dir}/alignment.Ref_{ref_type}.R1_{read_type1}.R2_{read_type2}.log"
 
-                    cmd = f"vg giraffe -p -t {thread} -o {output_format} --named-coordinates -Z {index_prefix}.giraffe.gbz -m {index_prefix}.min -d {index_prefix}.dist {giraffe_input}"
+                    cmd = f"vg giraffe -p -t {thread} -o {output_format} -M 2 --named-coordinates -Z {index_prefix}.giraffe.gbz -m {index_prefix}.min -d {index_prefix}.dist {giraffe_input}"
                     # print(cmd)
                     se = utility.SystemExecute()
                     fout, flog = se.execute(cmd, stdout=None, stderr=alignment_log)
@@ -257,9 +274,13 @@ if __name__ == "__main__":
         for fh in alignment_outs.values():
             fh.close()
 
+
         for fn in alignment_file_path:
             cmd = f"sort -o {fn} {fn}"
-            os.system(cmd)
+
+            se = utility.SystemExecute()
+            fout, flog = se.execute(cmd, stdout=None, stderr=None)
+            se.wait()
 
         sys.exit(0)
 
@@ -269,6 +290,11 @@ if __name__ == "__main__":
     if command == "methylcall":
         work_dir = kvargs["work_dir"]
         gfa_file = kvargs["index_prefix"] + ".wl.gfa"
+
+        # TODO make them parameters
+        minimum_identity = 20
+        minimum_mapq = 0
+        discard_multimapped = True
 
         alignment_fp = []
         for i in range(10):
@@ -286,10 +312,18 @@ if __name__ == "__main__":
         for fn in methylation_tmp_file_names:
             methylation_tmp_output.append(open(fn, "w"))
 
-        total_alignment_count, low_confidence_count, error_count = mcall.call(gfa_instance, alignment_fp, methylation_tmp_output)
+        total_alignment_count, low_confidence_count, error_count, multimapped_count = mcall.call(
+            gfa_instance,
+            alignment_fp,
+            methylation_tmp_output,
+            minimum_identity=minimum_identity,
+            minimum_mapq=minimum_mapq,
+            discard_multimapped=discard_multimapped
+        )
         freport = open(f"{work_dir}/report.txt", "a")
         freport.write(f"Total aligned reads: {total_alignment_count}\n")
-        freport.write(f"Low confidence count (low quality or multi-mapped alignment): {low_confidence_count}\n")
+        freport.write(f"Total multi-mapped reads: {multimapped_count}\n")
+        freport.write(f"Low confidence count (low quality alignment in terms of block length and MapQ): {low_confidence_count}\n")
         freport.write(f"Inconsistent alignment entries: {error_count}\n")
 
         del gfa_instance
@@ -300,7 +334,7 @@ if __name__ == "__main__":
         methylation_tmp_output = []
         for fn in methylation_tmp_file_names:
             methylation_tmp_output.append(open(fn))
-        final_out = open("graph.methyl", "w")
+        final_out = open("graph2.methyl", "w")
 
         for fn in methylation_tmp_output:
             mcall.mcall_tmp_to_final(fn, final_out)
@@ -312,13 +346,17 @@ if __name__ == "__main__":
         sys.exit(0)
 
     if command == "qc":
+        import postprocessingQC
+
+
         # TODO run QC
         work_dir = kvargs["work_dir"]
+        lp_id = kvargs["lp_id"]
 
         mcalled = f"{work_dir}/graph.methyl"
 
-        lsid, r = postprocessingQC.estimate_conversion_rate(mcalled)
-        print(f"Lambda Phage Segment ID: {lsid}")
+        r = postprocessingQC.estimate_conversion_rate(mcalled, lp_id)
+        print(f"Lambda Phage Segment ID: {lp_id}")
         print(f"Conversion rate: {r*100:.2f}%")
 
         sys.exit(0)

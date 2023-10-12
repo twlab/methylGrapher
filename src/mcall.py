@@ -108,12 +108,13 @@ def cs_tag_parse(alignment_tag):
 
 
 
-def call(gfa, alignment, methylation_output, minimum_identity=50, minimum_mapq=20):
+def call(gfa, alignment, methylation_output, minimum_identity=50, minimum_mapq=20, discard_multimapped=True):
 
-    # Alignment count, low confidence count, error count
+    # Alignment count, low confidence count, error count, multi-mapped alignment count
     counter1 = 0
     counter2 = 0
     counter3 = 0
+    counter4 = 0
 
     utl = utility.Utility()
 
@@ -123,7 +124,6 @@ def call(gfa, alignment, methylation_output, minimum_identity=50, minimum_mapq=2
             alignment_file_handles.append(open(a))
     else:
         alignment_file_handles.append(open(alignment))
-
 
 
     for alignment_file_handle in alignment_file_handles:
@@ -141,41 +141,97 @@ def call(gfa, alignment, methylation_output, minimum_identity=50, minimum_mapq=2
             if asterisk:
                 continue
 
+            # Example @A00584:440:HJLVHDSX2:2:1101:3007:1031C2T1R0
+            read_lane_loc = l[0][:-6]
+            conversion_type = l[0][-6:-3]
+            read_index = l[0][-2:]
+            read_name_wi = (read_lane_loc, read_index)
+
+
+            # change read name to read (name, read index)  (like: (xxx, R1) or (xxx, R2))
+            l[0] = read_name_wi
+            l.append("ct:Z:" + conversion_type)
+
+            # print(l)
 
             if len(lines_for_same_read) == 0:
                 lines_for_same_read.append(l)
                 continue
 
-            # @A00584:440:HJLVHDSX2:2:1101:3007:1031C2T1R0
-            read_name = l[0][:-6]
-            conversion_type = l[0][-6:-3]
-            read_index = l[0][-2:]
-            read_name = read_name + read_index
 
-            l[0] = read_name
-            l.append("ct:Z:" + conversion_type)
-
-            if l[0] == lines_for_same_read[0][0]:
+            if l[0][0] == lines_for_same_read[0][0][0]:
                 lines_for_same_read.append(l)
                 continue
             else:
                 # Figure out the best alignment for the read pair
                 best_alignments = {}
 
+
+                #if len(lines_for_same_read) > 1:
+                #    for a in lines_for_same_read:
+                #        print(a)
+                #    print()
+
                 for a in lines_for_same_read:
-                    read_seq = ""
+                    read_index = a[0][1]
+                    if read_index not in best_alignments:
+                        best_alignments[read_index] = {}
+                    read_seq = None
+                    conversion_type = None
+                    alignment_score = None
+
                     for tag in a[12:]:
                         if tag.startswith("bq:Z:"):
+                            # Getting the original
                             read_seq = tag[5:]
-                            break
 
-                    if read_seq not in best_alignments or a[9] > best_alignments[read_seq][9]:
-                        best_alignments[read_seq] = a
+                        if tag.startswith("ct:Z:"):
+                            # Getting the original
+                            conversion_type = tag[5:]
+
+                        if tag.startswith("AS:i:"):
+                            # Getting the original
+                            alignment_score = int(tag[5:])
+
+                    assert read_seq is not None
+                    assert conversion_type is not None
+
+                    if alignment_score not in best_alignments[read_index]:
+                        best_alignments[read_index][alignment_score] = []
+                    best_alignments[read_index][alignment_score].append(a)
 
                 lines_for_same_read = [l]
 
             # print(best_alignments)
-            for best_alignment in best_alignments.values():
+            best_alignments2 = []
+            for read_index in best_alignments.keys():
+                highest_score = max(best_alignments[read_index].keys())
+                best_alignments[read_index] = best_alignments[read_index][highest_score]
+
+                multimapped = False
+                best_alignment = best_alignments[read_index][0]
+                aligned_segments = set(alignment_path_parse(best_alignment[5])[0])
+                if len(best_alignments[read_index]) > 1:
+                    for a in best_alignments[read_index]:
+                        p = set(alignment_path_parse(a[5])[0])
+                        aligned_segments = aligned_segments.intersection(p)
+                        # print(a)
+
+                    if len(aligned_segments) == 0:
+                        multimapped = True
+                        counter4 += 1
+                        # print("multimapped", read_index)
+
+                if multimapped and discard_multimapped:
+                    continue
+
+                best_alignments2.append(best_alignment)
+
+
+
+            # print(best_alignments)
+            mcall_per_read = set()
+            for best_alignment in best_alignments2:
                 counter1 += 1
 
                 low_confidence = False
@@ -188,8 +244,9 @@ def call(gfa, alignment, methylation_output, minimum_identity=50, minimum_mapq=2
                     continue
 
 
-                l = best_alignment
 
+
+                l = best_alignment
 
 
                 duration1 = time.time() - ts
@@ -229,6 +286,7 @@ def call(gfa, alignment, methylation_output, minimum_identity=50, minimum_mapq=2
 
 
                 if alignment_tag is None or original_bs_read is None or read_conversion_type is None:
+                    counter3 += 1
                     continue
 
                 qso, qeo, rl, indels = cs_tag_parse(alignment_tag)
@@ -440,6 +498,34 @@ def call(gfa, alignment, methylation_output, minimum_identity=50, minimum_mapq=2
                         base_strand = "+"
 
 
+                    """
+                    # TODO debug
+                    if segmentID == "10007" and methylated == 1:
+                        highlight = ""
+                        hc = "C"
+                        if segment_pos > 230:
+                            hc = "G"
+
+                        for b in bs_read_portion:
+                            if b == hc:
+                                highlight += "\033[92m*\033[0m"
+                            else:
+                                highlight += " "
+                        segment_offset = segment_pos - 100
+                        if segment_pos > 230:
+                            segment_offset = segment_pos - 250
+
+                        print(segmentID, segment_pos, base_strand, category, methylated)
+                        print(ref_base, read_base)
+                        print("Ref:  ", path_seq_portion)
+                        print("Read: ", bs_read_portion)
+                        print("      ", highlight)
+                        print("      ", " " * segment_offset + "*")
+                        print()
+                    """
+
+                    """
+                    # OLD code for read coverage
                     mcall_tmp = methylation_output[int(segmentID[-1])]
 
                     if segmentID != last_segmentID:
@@ -448,6 +534,10 @@ def call(gfa, alignment, methylation_output, minimum_identity=50, minimum_mapq=2
                     else:
                         pass
                         mcall_tmp.write(f"\t{segment_pos}\t{base_strand}\t{category}\t{methylated}\n")
+                    """
+
+                    d = (segmentID, segment_pos, base_strand, category, methylated)
+                    mcall_per_read.add(d)
 
                     #print(i, category, ref_base, read_base, methylated)
                     #print(path_seq_portion[i], bs_read_portion[i], )
@@ -466,8 +556,21 @@ def call(gfa, alignment, methylation_output, minimum_identity=50, minimum_mapq=2
                 #print(f"{int(duration1/duration*100)} {int(duration2/duration*100)} {int(duration3/duration*100)} {int(duration4/duration*100)} {int(duration5/duration*100)}  {int(duration6/duration*100)} ")
                 #print()
 
+            # Merge the methylation calls for the same read pair/fragment.
+            # So the coverage is by fragment rather than by read.
+            mcall_per_read = list(sorted(mcall_per_read))
+            last_segmentID = None
+            for (segmentID, segment_pos, base_strand, category, methylated) in mcall_per_read:
+                mcall_tmp = methylation_output[int(segmentID[-1])]
+
+                if segmentID != last_segmentID:
+                    mcall_tmp.write(f"{segmentID}\t{segment_pos}\t{base_strand}\t{category}\t{methylated}\n")
+                    last_segmentID = segmentID
+                else:
+                    mcall_tmp.write(f"\t{segment_pos}\t{base_strand}\t{category}\t{methylated}\n")
+
     # Low confident count, Error count
-    return counter1, counter2, counter3
+    return counter1, counter2, counter3, counter4
 
 
 
@@ -504,7 +607,7 @@ if __name__ == "__main__":
 
         print("start")
 
-        gfa_instance = gfa.GraphicalFragmentAssemblyMemory()
+        gfa_instance = gfa.GraphicalFragmentAssemblyMemorySegmentOptimized()
         gfa_instance.parse(gfa_fp)
 
         print("Got GFA")
