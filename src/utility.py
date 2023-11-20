@@ -14,6 +14,8 @@ import pgzip
 
 
 
+
+
 class Utility(object):
     
     lambda_phage_ref = None
@@ -233,7 +235,7 @@ def fastq_converter(fq1, fq2, workdir, compress=True, thread=1, directional=True
             input_fastq_fh = None
             input_compress = utils.isGzip(input_fastq)
             if input_compress:
-                input_fastq_fh = pgzip.open(input_fastq, 'rt', thread=thread)
+                input_fastq_fh = gzip.open(input_fastq, 'rt')
             else:
                 input_fastq_fh = open(input_fastq, 'r')
 
@@ -279,7 +281,128 @@ def fastq_converter(fq1, fq2, workdir, compress=True, thread=1, directional=True
     return 0
 
 
+
+class HelpDocument(object):
+
+    def __init__(self):
+        pass
+
+    def header(self):
+        return """███╗   ███╗███████╗████████╗██╗  ██╗██╗   ██╗██╗      ██████╗ ██████╗  █████╗ ██████╗ ██╗  ██╗███████╗██████╗ 
+████╗ ████║██╔════╝╚══██╔══╝██║  ██║╚██╗ ██╔╝██║     ██╔════╝ ██╔══██╗██╔══██╗██╔══██╗██║  ██║██╔════╝██╔══██╗
+██╔████╔██║█████╗     ██║   ███████║ ╚████╔╝ ██║     ██║  ███╗██████╔╝███████║██████╔╝███████║█████╗  ██████╔╝
+██║╚██╔╝██║██╔══╝     ██║   ██╔══██║  ╚██╔╝  ██║     ██║   ██║██╔══██╗██╔══██║██╔═══╝ ██╔══██║██╔══╝  ██╔══██╗
+██║ ╚═╝ ██║███████╗   ██║   ██║  ██║   ██║   ███████╗╚██████╔╝██║  ██║██║  ██║██║     ██║  ██║███████╗██║  ██║
+╚═╝     ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝   ╚═╝   ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
+""".strip()
+
+    def version(self):
+        return "0.1.0"
+
+    def help_text_raw(self):
+        return """
+Usage: python main.py <command> <arguments>
+Commands:
+    help
+    PrepareGenome
+    PrepareLibrary
+    Align
+    MethylCall
+
+Help:
+    python main.py help
+
+PrepareGenome:
+    It adds lambda phage genome to your genome graph, converts a GFA file into fully G->A and C->T converted GFA file, and indexes it for vg giraffe alignment.
+    python main.py PrepareGenome 
+    # Input options
+    -gfa <gfa_file_path> 
+    -lp <lambda_phage_genome_path> 
+    # Output options
+    -prefix <output_prefix> 
+    -compress <Y/N>
+    # Computing options
+    -t <number_of_thread(s)> 
+
+PrepareLibrary:
+    Attention: The user should run Trim Glore first. 
+    It first deduplicates your BS library (FASTQ file(s)), and then convert them into fully G->A and C->T converted FASTQ file.
+    For single-end reads, just provide FASTQ file path to -fq1 argument.
+    python main.py PrepareLibrary 
+    # Input options
+    -fq1 <fastq_file_path> 
+    -fq2 <fastq_file_path> 
+    # Output options
+    -work_dir <work_directory> 
+    -compress <Y/N> (default: Y)
+    # Computing options
+    -t <number_of_thread(s)> (default: 1)
+    -directional <Y/N> (default: Y) 
+
+Align:
+    VG Giraffe alignment, please provide work directory and index prefix.
+    python main.py Align 
+    -index_prefix <prefix> 
+    -work_dir <work_directory> 
+    -directional <Y/N> (default: Y)
+
+MethylCall:
+    Methylation call from vg giraffe alignment result.
+    python main.py MethylCall 
+    -work_dir <work_directory>
+    
+    -discard_multimapped <Y/N> (default: Y)
+    -minimum_identity <minimum_identity> (default: 20)
+    -minimum_mapq <minimum_mapq> (default: 0)
+    
+    -t <number_of_thread(s)> (default: 1)
+    -batch_size <batch_size> (default: 4096)
+    
+
+""".strip()
+
+    def help_text(self):
+        return f"\n\n{self.header()}\n\nDeveloped by Wenjin @ Wanglab (WUSTL)\nVersion: {self.version()}\n\n{self.help_text_raw()}\n\n\n\n\n\n\n\n"
+
+    def abc(self):
+        return """"""
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
     pass
+
+
+
+    help = HelpDocument()
+    print(help.help_text())
 
 

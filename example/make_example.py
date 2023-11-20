@@ -26,7 +26,7 @@ def lambda_reader(p):
     f.close()
     return res
 
-lambda_genome = lambda_reader("../src/lambda.fa")
+lambda_genome = lambda_reader("lambda.fa")
 
 genome_graph_segments = {
     "10001": "AAATTAATAGTACGCGTTGCTTGGCCCGCTGGTCATATACTTGAATTTGGTTGAAGTAATCTTGAATTGACTCGAGGTACACTAAACAACCGCCCCCGCT",
@@ -81,9 +81,10 @@ for i in range(1000):
         if read2[j] == "G" and random.random() < 0.5:
             read2[j] = "A"
 
+
     rn = random_h(30)
-    reads1[rn] = "".join(read1)
-    reads2[rn] = "".join(read2)
+    reads1[rn + "1p2r"] = "".join(read1)
+    reads2[rn + "1p2r"] = "".join(read2)
 
 
 # 10002 - 10004
@@ -101,10 +102,9 @@ for i in range(1000):
         if read1[j] == "C" and random.random() < 0.5:
             read1[j] = "T"
 
-
     rn = random_h(30)
-    reads1[rn] = "".join(read1)
-    reads2[rn] = "".join(read2)
+    reads1[rn + "2p4r"] = "".join(read1)
+    reads2[rn + "2p4r"] = "".join(read2)
 
 
 
@@ -127,9 +127,10 @@ for i in range(1000):
         if read2[j] == "G":
             read2[j] = "A"
 
+
     rn = random_h(30)
-    reads1[rn] = "".join(read1)
-    reads2[rn] = "".join(read2)
+    reads1[rn + "3f1p"] = "".join(read1)
+    reads2[rn + "3f1p"] = "".join(read2)
 
 
 
@@ -162,6 +163,9 @@ gg = "H	VN:Z:1.1\n"
 for sid in sorted(genome_graph_segments.keys()):
     seg = f"S\t{sid}\t{genome_graph_segments[sid]}\n"
     gg += seg
+
+for i in [2,3,5,6,7,8]:
+    gg += f"W	walk{i}	0	chrx	0	201	>10001>1000{i}>10004\n"
 
 for sid_from in sorted(genome_graph_links.keys()):
     for sid_to in genome_graph_links[sid_from]:

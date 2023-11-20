@@ -1,5 +1,4 @@
 
-
 import os
 import sys
 import time
@@ -211,10 +210,12 @@ class GraphicalFragmentAssemblyMemory(GraphicalFragmentAssemblyAbstract):
     def all_segment_IDs(self):
         return self._segment.keys()
 
-    def write_converted(self, output_file, replace_base1, replace_base2):
+    def write_converted(self, output_file, replace_base1, replace_base2, SNV_trim=True):
 
         # Remove base2 SNV when base1 is present
-        replacement = self.get_replacement_SNV(replace_base1, replace_base2)
+        replacement = {}
+        if SNV_trim:
+            replacement = self.get_replacement_SNV(replace_base1, replace_base2)
 
         replaced_gfa_file = open(output_file, "w")
         with replaced_gfa_file as f:
@@ -236,8 +237,15 @@ class GraphicalFragmentAssemblyMemory(GraphicalFragmentAssemblyAbstract):
 
             with open(self._original_gfa_path) as f:
                 for l in f:
+                    # TODO: support for P
                     if l[0] not in "W":
                         continue
+
+                    if not SNV_trim:
+                        replaced_gfa_file.write(l)
+                        continue
+
+                    # Graph Trimming
                     l = l.strip().split("\t")
                     # l[6] = l[6][:100]
                     walk = l[6]
@@ -626,6 +634,11 @@ class GraphicalFragmentAssemblySQL(GraphicalFragmentAssemblyAbstract):
 def add_lambda_genome_to_gfa(igfa, ogfa, lambda_ref):
     figfa = open(igfa)
     fogfa = open(ogfa, "w")
+
+    if lambda_ref is None:
+        for l in figfa:
+            fogfa.write(l)
+        return
 
     lseq = ""
     for l in open(lambda_ref):
