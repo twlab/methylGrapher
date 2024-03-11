@@ -318,6 +318,7 @@ PrepareGenome:
     # Input options
     -gfa <gfa_file_path> 
     -lp <lambda_phage_genome_path> 
+    -trim <Y/N> (default: Y)
     # Output options
     -prefix <output_prefix> 
     -compress <Y/N>

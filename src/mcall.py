@@ -701,7 +701,6 @@ def alignment_parse_worker(pid, work_dir, input_queue, output_queue, minimum_ide
     wct = WorkerConterAndTimer(process_name=f"Alignment Parsing {pid}")
     wct.start()
 
-    alignment_parse_index = 0
     while True:
 
         try:
@@ -710,12 +709,11 @@ def alignment_parse_worker(pid, work_dir, input_queue, output_queue, minimum_ide
             break
 
         batch = []
-        alignment_parse_index += 1
         for r in alignment_parse(
             work_dir,
             alingment_file_index=alingment_file_index,
             minimum_identity=minimum_identity, minimum_mapq=minimum_mapq, discard_multimapped=discard_multimapped,
-            pid=f"{pid}_{alignment_parse_index}"
+            pid=f"{pid}_{alingment_file_index}"
         ):
             wct.count()
 
@@ -1095,7 +1093,7 @@ def mcall_main(
 
 if __name__ == "__main__":
 
-    pass
+    mcall_main
 
 
 
