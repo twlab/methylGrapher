@@ -42,10 +42,21 @@
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Process</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#genome-indexing">Genome Indexing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#genome-indexing">Genome Indexing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#description">Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#example-usage">Example Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#required-arguments">Required arguments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#optional-arguments">Optional arguments</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#deduplication">Deduplication</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#alignment">Alignment</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#methylation-extraction">Methylation Extraction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#main">Main</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">Example Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">Required arguments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">Optional arguments</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="contact.html">Contact us</a></li>
@@ -79,15 +90,63 @@
 <h1>Process<a class="headerlink" href="#process" title="Permalink to this heading"></a></h1>
 <section id="genome-indexing">
 <h2>Genome Indexing<a class="headerlink" href="#genome-indexing" title="Permalink to this heading"></a></h2>
+<section id="description">
+<h3>Description<a class="headerlink" href="#description" title="Permalink to this heading"></a></h3>
+<p>This process involves transforming the genome graph from GFA format into two fully converted genome graphs: one depleted of C bases and another depleted of G bases. Additionally, if desired, you may include a spike-in genome in FASTA format to estimate the conversion rate in a single step further.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It’s important to note that in the C-to-T genome graph, if both C and T segments are positioned identically—meaning they share the same parent and child segments, and each has only one parent and one child—the T segments are removed. Additionally, any associated links and paths are redirected to the corresponding C segment. This principle also applies in the G-to-A genome graph.</p>
+</div>
+</section>
+<section id="example-usage">
+<h3>Example Usage<a class="headerlink" href="#example-usage" title="Permalink to this heading"></a></h3>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>python3 /path/to/the/repo/src/main.py PrepareGenome -gfa YourGFAFilePath -lp LambdaPhageFastaFilePath -prefix OutputPrefix -t ThreadsUsed
+</pre></div>
+</div>
+</section>
+<section id="required-arguments">
+<h3>Required arguments<a class="headerlink" href="#required-arguments" title="Permalink to this heading"></a></h3>
+<p>-gfa &lt;gfa_file_path&gt;
+-prefix &lt;output_prefix&gt;</p>
+</section>
+<section id="optional-arguments">
+<h3>Optional arguments<a class="headerlink" href="#optional-arguments" title="Permalink to this heading"></a></h3>
+<p>-lp &lt;lambda_phage_genome_path&gt;
+-t &lt;threads_used&gt; (default: 1)</p>
+</section>
 </section>
 <section id="deduplication">
 <h2>Deduplication<a class="headerlink" href="#deduplication" title="Permalink to this heading"></a></h2>
+<p>Refer to FastUniq documentation for more details.</p>
 </section>
-<section id="alignment">
-<h2>Alignment<a class="headerlink" href="#alignment" title="Permalink to this heading"></a></h2>
+<section id="main">
+<h2>Main<a class="headerlink" href="#main" title="Permalink to this heading"></a></h2>
+<section id="id1">
+<h3>Description<a class="headerlink" href="#id1" title="Permalink to this heading"></a></h3>
+<p>The core operation of methylGrapher comprises four essential steps. Firstly, fully converted FastQs are generated. Subsequently, these converted FastQs are aligned against methylGrapher indexes. Next, the resulting alignment files, formatted in GAF, undergo sorting to facilitate subsequent methylation extraction. Lastly, the methylation extraction process is executed.</p>
 </section>
-<section id="methylation-extraction">
-<h2>Methylation Extraction<a class="headerlink" href="#methylation-extraction" title="Permalink to this heading"></a></h2>
+<section id="id2">
+<h3>Example Usage<a class="headerlink" href="#id2" title="Permalink to this heading"></a></h3>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>python3 /path/to/the/repo/src/main.py Main -t ThreadsUsed -work_dir TheWorkingDir -index_prefix PrepareGenomeOutputPrefix
+</pre></div>
+</div>
+</section>
+<section id="id3">
+<h3>Required arguments<a class="headerlink" href="#id3" title="Permalink to this heading"></a></h3>
+<p>-work_dir &lt;working_directory&gt;</p>
+<p>-index_prefix &lt;index_prefix&gt;</p>
+<p>-fq1 &lt;fastq1_file_path&gt;</p>
+</section>
+<section id="id4">
+<h3>Optional arguments<a class="headerlink" href="#id4" title="Permalink to this heading"></a></h3>
+<p>-fq2 &lt;fastq2_file_path&gt;</p>
+<p>-directional (default: Y)</p>
+<p>-minimum_identity &lt;minimum_identity&gt; (default: 20)</p>
+<p>-minimum_mapq &lt;minimum_mapq&gt; (default: 0)</p>
+<p>-discard_multimapped (default: Y)</p>
+<p>-batch_size &lt;batch_size&gt; (default: 4096)</p>
+<p>-t &lt;threads_used&gt; (default: 1)</p>
+</section>
 </section>
 </section>
 

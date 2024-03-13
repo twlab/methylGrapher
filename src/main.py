@@ -297,7 +297,7 @@ if __name__ == "__main__":
 
 
     # One command to run all
-    if command == "simple":
+    if command == "main":
 
         work_dir = kvargs.get("work_dir", "./")
 

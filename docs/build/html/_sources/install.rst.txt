@@ -6,11 +6,16 @@ Installation
 
 Prerequisites
 ----------
-Adapter Trimming: Trim Galore!
+Adapter Trimming: `Trim Galore! <https://github.com/FelixKrueger/TrimGalore>`_
 
-Deduplication: FastUniq
+Deduplication: `FastUniq <https://sourceforge.net/projects/fastuniq/files/>`_
 
-Alignment: VG Giraffe
+Alignment: `VG Giraffe <https://github.com/vgteam/vg>`_
+
+Python3: Tested on 3.9 and 3.10
+
+.. warning::
+    You must ensure that both the VG toolkit and Python 3 are installed and added to your PATH.
 
 
 Install via PIP
@@ -25,11 +30,9 @@ To be updated...
 
 Use Docker
 ----------
-https://hub.docker.com/repository/docker/wenjin27/methylgrapher/general
-
+`Docker Hub <https://hub.docker.com/repository/docker/wenjin27/methylgrapher/general>`_
 
 Source code
 ----------
-https://github.com/twlab/MethylGrapher
-
+`The source code <https://github.com/twlab/MethylGrapher>`_
 
