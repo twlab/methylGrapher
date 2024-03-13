@@ -1,0 +1,35 @@
+
+
+Installation
+=========
+
+
+Prerequisites
+----------
+Adapter Trimming: Trim Galore!
+
+Deduplication: FastUniq
+
+Alignment: VG Giraffe
+
+
+Install via PIP
+----------
+To be updated...
+
+
+Install via CONDA
+----------
+To be updated...
+
+
+Use Docker
+----------
+https://hub.docker.com/repository/docker/wenjin27/methylgrapher/general
+
+
+Source code
+----------
+https://github.com/twlab/MethylGrapher
+
+

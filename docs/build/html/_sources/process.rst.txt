@@ -1,0 +1,26 @@
+
+
+Process
+=========
+
+
+Genome Indexing
+----------
+
+
+Deduplication
+----------
+
+
+Alignment
+----------
+
+
+Methylation Extraction
+----------
+
+
+
+
+
+

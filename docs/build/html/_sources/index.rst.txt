@@ -1,0 +1,19 @@
+.. MethylGrapher documentation master file, created by
+   sphinx-quickstart on Mon Jul  3 03:17:48 2023.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
+Welcome to methylGrapher's documentation!
+=========================================
+
+methylGrapher: Genome-Graph-Based DNA Methylation Analysis Using Whole Genome Bisulfite Sequencing
+-------------------------------------------
+.. toctree::
+   :maxdepth: 2
+
+   install
+   process
+   command
+   contact
+
+
