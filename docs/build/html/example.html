@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World &mdash; MethylGrapher  documentation</title>
+  <title>Toy Example &mdash; methylGrapher  documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -19,7 +19,9 @@
         <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Contact us" href="contact.html" />
+    <link rel="prev" title="Process" href="process.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -27,7 +29,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> MethylGrapher
+            <a href="index.html" class="icon icon-home"> methylGrapher
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -37,9 +39,10 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <ul>
+              <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="process.html">Process</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Toy Example</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contact.html">Contact us</a></li>
 </ul>
 
@@ -49,7 +52,7 @@
 
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="index.html">MethylGrapher</a>
+          <a href="index.html">methylGrapher</a>
       </nav>
 
       <div class="wy-nav-content">
@@ -57,9 +60,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home"></a></li>
-      <li class="breadcrumb-item active">Hello World</li>
+      <li class="breadcrumb-item active">Toy Example</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="_sources/hello.rst.txt" rel="nofollow"> View page source</a>
+            <a href="_sources/example.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -67,20 +70,32 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="hello-world">
-<h1>Hello World<a class="headerlink" href="#hello-world" title="Permalink to this heading"></a></h1>
-<p>ç</p>
+  <section id="toy-example">
+<h1>Toy Example<a class="headerlink" href="#toy-example" title="Permalink to this heading"></a></h1>
+<p>This is a toy example to show how to use the methylGrapher package to analyze the methylation data.
+Also you can use it to verify the installation of the package.</p>
+<p>All the script and data are in the <cite>example</cite> folder below.
+<a class="reference external" href="https://github.com/twlab/methylGrapher/blob/main/example/">https://github.com/twlab/methylGrapher/blob/main/example/</a></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>git clone git@github.com:twlab/methylGrapher.git
+<span class="nb">cd</span> methylGrapher/example
+bash pipeline.sh
+</pre></div>
+</div>
+<p>The final output will be methylGrapher/example/graph.methyl</p>
 </section>
 
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="process.html" class="btn btn-neutral float-left" title="Process" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="contact.html" class="btn btn-neutral float-right" title="Contact us" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2023, Wenjin Zhang.</p>
+    <p>&#169; Copyright 2023-2024, Wenjin Zhang.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

@@ -1,11 +1,11 @@
 
 
 Installation
-=========
+====================================
 
 
 Prerequisites
-----------
+------------------------------
 Adapter Trimming: `Trim Galore! <https://github.com/FelixKrueger/TrimGalore>`_
 
 Deduplication: `FastUniq <https://sourceforge.net/projects/fastuniq/files/>`_
@@ -19,20 +19,29 @@ Python3: Tested on 3.9 and 3.10
 
 
 Install via PIP
-----------
-To be updated...
+----------------------------------------
+
+.. code-block:: shell
+
+    pip install methylGrapher
 
 
 Install via CONDA
-----------
-To be updated...
+----------------------------------------
+
+.. code-block:: shell
+
+    conda create -n methylGrapher python=3.9
+    conda activate methylGrapher
+    conda install bioconda::vg
+    pip install methylGrapher
 
 
 Use Docker
-----------
+----------------------------------------
 `Docker Hub <https://hub.docker.com/repository/docker/wenjin27/methylgrapher/general>`_
 
 Source code
-----------
+----------------------------------------
 `The source code <https://github.com/twlab/MethylGrapher>`_
 

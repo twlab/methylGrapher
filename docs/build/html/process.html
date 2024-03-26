@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Process &mdash; MethylGrapher  documentation</title>
+  <title>Process &mdash; methylGrapher  documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -20,7 +20,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Contact us" href="contact.html" />
+    <link rel="next" title="Toy Example" href="example.html" />
     <link rel="prev" title="Installation" href="install.html" /> 
 </head>
 
@@ -29,7 +29,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> MethylGrapher
+            <a href="index.html" class="icon icon-home"> methylGrapher
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -57,8 +57,30 @@
 <li class="toctree-l3"><a class="reference internal" href="#id4">Optional arguments</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#preparelibrary">PrepareLibrary</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id5">Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id6">Example Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id7">Required arguments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id8">Optional arguments</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#align">Align</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id9">Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id10">Example Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id11">Required arguments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id12">Optional arguments</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#methylcall">MethylCall</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id13">Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id14">Example Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id15">Required arguments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id16">Optional arguments</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="example.html">Toy Example</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contact.html">Contact us</a></li>
 </ul>
 
@@ -68,7 +90,7 @@
 
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="index.html">MethylGrapher</a>
+          <a href="index.html">methylGrapher</a>
       </nav>
 
       <div class="wy-nav-content">
@@ -100,7 +122,7 @@
 </section>
 <section id="example-usage">
 <h3>Example Usage<a class="headerlink" href="#example-usage" title="Permalink to this heading"></a></h3>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>python3 /path/to/the/repo/src/main.py PrepareGenome -gfa YourGFAFilePath -lp LambdaPhageFastaFilePath -prefix OutputPrefix -t ThreadsUsed
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>methylGrapher PrepareGenome -gfa YourGFAFilePath -lp LambdaPhageFastaFilePath -prefix OutputPrefix -t ThreadsUsed
 </pre></div>
 </div>
 </section>
@@ -113,11 +135,25 @@
 <h3>Optional arguments<a class="headerlink" href="#optional-arguments" title="Permalink to this heading"></a></h3>
 <p>-lp &lt;lambda_phage_genome_path&gt;
 -t &lt;threads_used&gt; (default: 1)</p>
+<div class="line-block">
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+</div>
 </section>
 </section>
 <section id="deduplication">
 <h2>Deduplication<a class="headerlink" href="#deduplication" title="Permalink to this heading"></a></h2>
 <p>Refer to FastUniq documentation for more details.</p>
+<div class="line-block">
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+</div>
 </section>
 <section id="main">
 <h2>Main<a class="headerlink" href="#main" title="Permalink to this heading"></a></h2>
@@ -127,7 +163,7 @@
 </section>
 <section id="id2">
 <h3>Example Usage<a class="headerlink" href="#id2" title="Permalink to this heading"></a></h3>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>python3 /path/to/the/repo/src/main.py Main -t ThreadsUsed -work_dir TheWorkingDir -index_prefix PrepareGenomeOutputPrefix
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>methylGrapher Main -t ThreadsUsed -work_dir TheWorkingDir -index_prefix PrepareGenomeOutputPrefix
 </pre></div>
 </div>
 </section>
@@ -146,6 +182,99 @@
 <p>-discard_multimapped (default: Y)</p>
 <p>-batch_size &lt;batch_size&gt; (default: 4096)</p>
 <p>-t &lt;threads_used&gt; (default: 1)</p>
+<div class="line-block">
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+</div>
+</section>
+</section>
+<section id="preparelibrary">
+<h2>PrepareLibrary<a class="headerlink" href="#preparelibrary" title="Permalink to this heading"></a></h2>
+<section id="id5">
+<h3>Description<a class="headerlink" href="#id5" title="Permalink to this heading"></a></h3>
+<p>It converts your input (FASTQs) into fully G-&gt;A and C-&gt;T converted FASTQ file.
+For single-end reads, just provide FASTQ file path to -fq1 argument.</p>
+</section>
+<section id="id6">
+<h3>Example Usage<a class="headerlink" href="#id6" title="Permalink to this heading"></a></h3>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>methylGrapher PrepareLibrary -work_dir TheWorkingDir -fq1 Fastq1FilePath -fq2 Fastq2FilePath
+</pre></div>
+</div>
+</section>
+<section id="id7">
+<h3>Required arguments<a class="headerlink" href="#id7" title="Permalink to this heading"></a></h3>
+<p>-work_dir &lt;working_directory&gt;</p>
+<p>-fq1 &lt;fastq1_file_path&gt;</p>
+</section>
+<section id="id8">
+<h3>Optional arguments<a class="headerlink" href="#id8" title="Permalink to this heading"></a></h3>
+<p>-fq2 &lt;fastq2_file_path&gt;</p>
+<p>-directional (default: Y)</p>
+<div class="line-block">
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+</div>
+</section>
+</section>
+<section id="align">
+<h2>Align<a class="headerlink" href="#align" title="Permalink to this heading"></a></h2>
+<section id="id9">
+<h3>Description<a class="headerlink" href="#id9" title="Permalink to this heading"></a></h3>
+<p>VG Giraffe alignment, please provide work directory and index prefix.</p>
+</section>
+<section id="id10">
+<h3>Example Usage<a class="headerlink" href="#id10" title="Permalink to this heading"></a></h3>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>methylGrapher Align -t ThreadsUsed -work_dir TheWorkingDir -index_prefix PrepareGenomeOutputPrefix
+</pre></div>
+</div>
+</section>
+<section id="id11">
+<h3>Required arguments<a class="headerlink" href="#id11" title="Permalink to this heading"></a></h3>
+<p>-work_dir &lt;working_directory&gt;</p>
+<p>-index_prefix &lt;index_prefix&gt;</p>
+</section>
+<section id="id12">
+<h3>Optional arguments<a class="headerlink" href="#id12" title="Permalink to this heading"></a></h3>
+<p>-t &lt;threads_used&gt; (default: 1)</p>
+<div class="line-block">
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+</div>
+</section>
+</section>
+<section id="methylcall">
+<h2>MethylCall<a class="headerlink" href="#methylcall" title="Permalink to this heading"></a></h2>
+<section id="id13">
+<h3>Description<a class="headerlink" href="#id13" title="Permalink to this heading"></a></h3>
+<p>Methylation call from vg giraffe alignment result.</p>
+</section>
+<section id="id14">
+<h3>Example Usage<a class="headerlink" href="#id14" title="Permalink to this heading"></a></h3>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>methylGrapher MethylCall  -t ThreadsUsed -work_dir TheWorkingDir -index_prefix PrepareGenomeOutputPrefix
+</pre></div>
+</div>
+</section>
+<section id="id15">
+<h3>Required arguments<a class="headerlink" href="#id15" title="Permalink to this heading"></a></h3>
+<p>-work_dir &lt;working_directory&gt;</p>
+<p>-index_prefix &lt;index_prefix&gt;</p>
+</section>
+<section id="id16">
+<h3>Optional arguments<a class="headerlink" href="#id16" title="Permalink to this heading"></a></h3>
+<p>-minimum_identity &lt;minimum_identity&gt; (default: 20)</p>
+<p>-minimum_mapq &lt;minimum_mapq&gt; (default: 0)</p>
+<p>-discard_multimapped (default: Y)</p>
+<p>-batch_size &lt;batch_size&gt; (default: 4096)</p>
+<p>-t &lt;threads_used&gt; (default: 1)</p>
 </section>
 </section>
 </section>
@@ -155,13 +284,13 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="install.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="contact.html" class="btn btn-neutral float-right" title="Contact us" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="example.html" class="btn btn-neutral float-right" title="Toy Example" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2023, Wenjin Zhang.</p>
+    <p>&#169; Copyright 2023-2024, Wenjin Zhang.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

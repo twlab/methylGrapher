@@ -7,13 +7,15 @@ Welcome to methylGrapher's documentation!
 =========================================
 
 methylGrapher: Genome-Graph-Based DNA Methylation Analysis Using Whole Genome Bisulfite Sequencing
--------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
 .. toctree::
    :maxdepth: 2
 
    install
    process
-   command
+   example
    contact
 
 

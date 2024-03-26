@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Installation &mdash; MethylGrapher  documentation</title>
+  <title>Installation &mdash; methylGrapher  documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -29,7 +29,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> MethylGrapher
+            <a href="index.html" class="icon icon-home"> methylGrapher
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -49,6 +49,7 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="process.html">Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="example.html">Toy Example</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contact.html">Contact us</a></li>
 </ul>
 
@@ -58,7 +59,7 @@
 
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="index.html">MethylGrapher</a>
+          <a href="index.html">methylGrapher</a>
       </nav>
 
       <div class="wy-nav-content">
@@ -91,11 +92,18 @@
 </section>
 <section id="install-via-pip">
 <h2>Install via PIP<a class="headerlink" href="#install-via-pip" title="Permalink to this heading"></a></h2>
-<p>To be updated…</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>pip install methylGrapher
+</pre></div>
+</div>
 </section>
 <section id="install-via-conda">
 <h2>Install via CONDA<a class="headerlink" href="#install-via-conda" title="Permalink to this heading"></a></h2>
-<p>To be updated…</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>conda create -n methylGrapher <span class="nv">python</span><span class="o">=</span><span class="m">3</span>.9
+conda activate methylGrapher
+conda install bioconda::vg
+pip install methylGrapher
+</pre></div>
+</div>
 </section>
 <section id="use-docker">
 <h2>Use Docker<a class="headerlink" href="#use-docker" title="Permalink to this heading"></a></h2>
@@ -118,7 +126,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2023, Wenjin Zhang.</p>
+    <p>&#169; Copyright 2023-2024, Wenjin Zhang.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
