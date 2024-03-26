@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python
 
 __author__ = "Wenjin Zhang"
 __copyright__ = "Copyright 2023, Ting Wang Lab"
@@ -116,17 +116,23 @@ if __name__ == "__main__":
     args = sys.argv
     args.pop(0)
 
+    vg_path = "vg"
+    thread = 1
+
     # Find config file
-    config = utility.ConfigParser("config.ini")
-    vg_path = config.get("default", "vg_path")
-    thread = config.get("default", "thread")
+    try:
+        config = utility.ConfigParser("config.ini")
+        vg_path = config.get("default", "vg_path")
+        thread = config.get("default", "thread")
+    except:
+        pass
+
     try:
         thread = int(thread)
     except:
         thread = 1
 
-    if vg_path in ["", None]:
-        vg_path = "vg"
+
 
 
     if len(args) == 0:
@@ -136,7 +142,7 @@ if __name__ == "__main__":
 
     command = args.pop(0)
     command = command.lower()
-    if command not in ["preparegenome", "preparelibrary", "align", "methylcall", "qc", "help", "-h", "--help", "simple"]:
+    if command not in ["preparegenome", "preparelibrary", "align", "methylcall", "qc", "help", "-h", "--help", "main"]:
         print(f"Unknown command: {command}")
         sys.exit(1)
 

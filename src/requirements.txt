@@ -1,3 +1,1 @@
 pgzip
-sqlite3
-matplotlib
