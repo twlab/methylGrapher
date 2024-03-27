@@ -1,16 +1,22 @@
 #!/usr/bin/env python
 
+import sys
+import distutils
 
-from distutils.core import setup
+# Get version automatically
+sys.path.append('./src')
+import main
 
-setup(
+ver = main.__version__
+
+distutils.core.setup(
       name='methylGrapher',
-      version='0.1.0',
+      version=ver,
       description='WGBS data analysis for genome graph',
       author='Wenjin Zhang',
       author_email='wenjin@wustl.edu',
       url='https://github.com/twlab/methylGrapher',
-      download_url='https://github.com/twlab/methylGrapher/releases/download/V0.1.0/methylGrapher-0.1.0.tar.gz',
+      download_url=f'https://github.com/twlab/methylGrapher/releases/download/V{ver}/methylGrapher-{ver}.tar.gz',
 
       python_requires='>=3.7',
 
