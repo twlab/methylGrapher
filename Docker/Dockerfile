@@ -1,9 +1,9 @@
-FROM python:3.12-bullseye
+FROM python:3.11-bullseye
 
+COPY ./dep.sh ./
+COPY ./FastUniq-1.1.tar.gz ./
 
-RUN pip install methylGrapher
-RUN cd /bin && wget https://github.com/vgteam/vg/releases/download/v1.55.0/vg && chmod +x vg
-
+RUN bash ./dep.sh
 
 
 
