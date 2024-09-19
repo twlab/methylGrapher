@@ -9,8 +9,6 @@ import hashlib
 import subprocess
 import multiprocessing
 
-import pgzip
-
 
 
 
@@ -97,7 +95,7 @@ def gfa_converter(input_gfa, output_file_prefix, compress=True, thread=1):
         output_file_handle = None
         if compress:
             output_gfa += '.gz'
-            output_file_handle = pgzip.open(output_gfa, 'wt')
+            output_file_handle = gzip.open(output_gfa, 'wt')
         else:
             output_file_handle = open(output_gfa, 'w')
 
@@ -108,7 +106,7 @@ def gfa_converter(input_gfa, output_file_prefix, compress=True, thread=1):
 
         # print(thread)
         if input_compress:
-            input_file_handle = pgzip.open(input_gfa, 'rt', thread=thread)
+            input_file_handle = gzip.open(input_gfa, 'rt')
         else:
             input_file_handle = open(input_gfa, 'r')
 
@@ -206,7 +204,7 @@ class SystemExecute(object):
         self._pool = []
 
 
-def fastq_converter(fq1, fq2, workdir, compress=True, thread=1, directional=True):
+def fastq_converter_OLD(fq1, fq2, workdir, compress=True, thread=1, directional=True):
     utils = Utility()
 
     report_file_handle = open(f"{workdir}/report.txt", 'a')
@@ -243,7 +241,7 @@ def fastq_converter(fq1, fq2, workdir, compress=True, thread=1, directional=True
             output_file_handle = None
             if compress:
                 output_fastq += '.gz'
-                output_file_handle = pgzip.open(output_fastq, 'wt', thread=thread)
+                output_file_handle = gzip.open(output_fastq, 'wt', thread=thread)
             else:
                 output_file_handle = open(output_fastq, 'w')
 
@@ -272,6 +270,223 @@ def fastq_converter(fq1, fq2, workdir, compress=True, thread=1, directional=True
 
                 #if i % 4 in [0, 1] and conversion_str == 'C2T':
                 #    read_record_file_handle.write(newl)
+            i+=1
+
+        report_file_handle.write(f"Total reads for R{read_count}: {int(i/4)}\n")
+
+    report_file_handle.close()
+
+    return 0
+
+
+
+
+def fastq_converter_worker_function(input_fastq_fp, output_fastq_fp, conversion_str, read_counts):
+    utils = Utility()
+
+    conversion = conversion_str.split('2')
+
+    input_fastq_fh = None
+    input_compress = utils.isGzip(input_fastq_fp)
+    if input_compress:
+        input_fastq_fh = gzip.open(input_fastq_fp, 'rt')
+    else:
+        input_fastq_fh = open(input_fastq_fp, 'r')
+
+    output_fastq_fh = None
+    output_compress = utils.isGzip(output_fastq_fp)
+    if output_compress:
+        output_fastq_fh = gzip.open(output_fastq_fp, 'wt')
+    else:
+        output_fastq_fh = open(output_fastq_fp, 'w')
+
+
+    seq = ""
+    phred = ""
+    original_query_name = ""
+
+    for i, l in enumerate(input_fastq_fh):
+
+        if i % 4 == 0:
+            if i == 0:
+                # TODO: the last read will be ignored
+                assert l.startswith('@')
+                original_query_name = l.strip()
+                continue
+
+
+            if " " in original_query_name:
+                original_qn1 = original_query_name.split(' ', 1)[0]
+            else:
+                original_qn1 = original_query_name
+
+            reminder = int(i / 4) % 1000
+            converted_seq = seq.replace(conversion[0], conversion[1])
+
+            newl = f"{original_qn1}_{conversion_str}_{reminder}_{seq}\n{converted_seq}\n+\n{phred}\n"
+            output_fastq_fh.write(newl)
+
+            seq = ""
+            phred = ""
+            original_query_name = ""
+
+            assert l.startswith('@')
+            original_query_name = l.strip()
+        elif i % 4 == 1:
+            seq = l.strip()
+        elif i % 4 == 2:
+            assert l.strip() == "+"
+        elif i % 4 == 3:
+            phred = l.strip().upper()
+
+
+    # Edge case. The last read
+    if " " in original_query_name:
+        original_qn1 = original_query_name.split(' ', 1)[0]
+    else:
+        original_qn1 = original_query_name
+
+    reminder = 1
+    converted_seq = seq.replace(conversion[0], conversion[1])
+
+    newl = f"{original_qn1}_{conversion_str}_{reminder}_{seq}\n{converted_seq}\n+\n{phred}\n"
+    output_fastq_fh.write(newl)
+
+    read_counts.append(int(i/4)+1)
+
+    return 0
+
+
+
+def fastq_converter(fq1, fq2, workdir, compress=True, thread=1, directional=True):
+    report_file_handle = open(f"{workdir}/report.txt", 'a')
+
+
+    pool = []
+    manager = multiprocessing.Manager()
+    read_counts = manager.list()
+
+    read_count = 0
+    for fq in (fq1, fq2):
+        read_count += 1
+
+        if fq == None:
+            continue
+
+        for conversion_str in ['C2T', 'G2A']:
+
+            if directional:
+                if read_count == 1 and conversion_str == 'G2A':
+                    continue
+                if read_count == 2 and conversion_str == 'C2T':
+                    continue
+
+            input_fastq = fq
+            output_fastq = f"{workdir}/{conversion_str}.R{read_count}.fastq"
+
+            if compress:
+                output_fastq += '.gz'
+
+            p = multiprocessing.Process(target=fastq_converter_worker_function, args=(input_fastq, output_fastq, conversion_str, read_counts))
+            p.start()
+            pool.append(p)
+
+    for p in pool:
+        p.join()
+
+    # print(read_counts)
+    assert len(set(read_counts)) == 1
+    report_file_handle.write(f"Total reads for R1: {read_counts[0]}\n")
+    if fq2 != None:
+        report_file_handle.write(f"Total reads for R2: {read_counts[0]}\n\n")
+
+    report_file_handle.close()
+
+    return 0
+
+def fastq_converter_delete_me(fq1, fq2, workdir, compress=True, thread=1, directional=True):
+    utils = Utility()
+
+    report_file_handle = open(f"{workdir}/report.txt", 'a')
+
+    read_count = 0
+    for fq in (fq1, fq2):
+        read_count += 1
+
+        for conversion_str in ['C2T', 'G2A']:
+
+            if directional:
+                if read_count == 1 and conversion_str == 'G2A':
+                    continue
+                if read_count == 2 and conversion_str == 'C2T':
+                    continue
+
+            conversion = conversion_str.split('2')
+
+
+            input_fastq = fq
+            if fq == None:
+                continue
+            output_fastq = f"{workdir}/{conversion_str}.R{read_count}.fastq"
+
+            input_fastq_fh = None
+            input_compress = utils.isGzip(input_fastq)
+            if input_compress:
+                input_fastq_fh = gzip.open(input_fastq, 'rt')
+            else:
+                input_fastq_fh = open(input_fastq, 'r')
+
+
+            output_file_handle = None
+            if compress:
+                output_fastq += '.gz'
+                output_file_handle = gzip.open(output_fastq, 'wt')
+            else:
+                output_file_handle = open(output_fastq, 'w')
+
+            seq = ""
+            phred = ""
+            original_query_name = ""
+
+            for i, l in enumerate(input_fastq_fh):
+
+                if i % 4 == 0:
+                    if i == 0:
+                        # TODO: the last read will be ignored
+                        assert l.startswith('@')
+                        original_query_name = l.strip()
+                        continue
+
+
+                    original_qn1, original_qn2 = original_query_name.split(' ', 1)
+                    reminder = int(i/4) % 1000
+                    converted_seq = seq.replace(conversion[0], conversion[1])
+
+                    newl = f"{original_qn1}_{conversion_str}_{reminder}_{seq} {original_qn2}\n{converted_seq}\n+\n{phred}\n"
+                    output_file_handle.write(newl)
+
+
+                    seq = ""
+                    phred = ""
+                    original_query_name = ""
+
+                    assert l.startswith('@')
+                    original_query_name = l.strip()
+                elif i % 4 == 1:
+                    seq = l.strip()
+                elif i % 4 == 2:
+                    assert l.strip() == "+"
+                elif i % 4 == 3:
+                    phred = l.strip().upper()
+
+
+
+                # output_file_handle.write(newl)
+                #if i % 4 in [0, 1] and conversion_str == 'C2T':
+                #    read_record_file_handle.write(newl)
+
+            # output_file_handle.write(newl)
+
             i+=1
 
         report_file_handle.write(f"Total reads for R{read_count}: {int(i/4)}\n")

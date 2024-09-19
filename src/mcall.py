@@ -116,7 +116,7 @@ def cs_tag_parse(alignment_tag):
 
 
 
-def get_best_alignment_from_same_read_pair(
+def get_best_alignment_from_same_read_pair_OLD(
         lines_for_same_read,
         minimum_identity=0,
         minimum_mapq=0,
@@ -199,6 +199,65 @@ def get_best_alignment_from_same_read_pair(
 
 
 
+
+def get_best_alignment_from_same_read_pair(
+        lines_for_same_read,
+        minimum_identity=0,
+        minimum_mapq=0,
+        discard_multimapped=True):
+
+    # print(minimum_identity, minimum_mapq, discard_multimapped)
+
+    aligned_count = 0
+    multimapped_count = 0
+    low_confidence_count = 0
+
+    best_alignments = []
+    for alignment in lines_for_same_read:
+        aligned_count += 1
+
+        alignment_score = None
+        multimapped = False
+
+        for i in [1, 2, 3, 6, 7, 8, 9, 10, 11]:
+            alignment[i] = int(alignment[i])
+        alignment[5] = alignment_path_parse(alignment[5])
+
+        for tag in alignment[12:]:
+
+
+            if tag.startswith("AS:i:"):
+                # Getting the original
+                alignment_score = int(tag[5:])
+
+            if tag.startswith("mp:i:"):
+                # Getting the original
+                mpi = int(tag[5:])
+                if mpi == 1:
+                    multimapped = True
+
+        assert alignment_score is not None
+
+        if multimapped:
+            if discard_multimapped:
+                multimapped_count += 1
+                continue
+
+        low_confidence = False
+        if alignment[11] < minimum_mapq:
+            low_confidence = True
+        if alignment[9] < minimum_identity:
+            low_confidence = True
+        if low_confidence:
+            low_confidence_count += 1
+            continue
+
+        best_alignments.append(alignment)
+
+    return best_alignments, aligned_count, multimapped_count, low_confidence_count
+
+
+
 def alignment_to_methylation(best_alignments, sequence_dict):
     error_count = 0
     mcall_per_frag = set()
@@ -222,14 +281,13 @@ def alignment_to_methylation(best_alignments, sequence_dict):
         original_bs_read = None
         read_conversion_type = None
         for tag in l[12:]:
+
             if tag.startswith("cs:Z:"):
                 alignment_tag = tag[5:]
-            if tag.startswith("bq:Z:"):
+            if tag.startswith("os:Z:"):
                 original_bs_read = tag[5:]
-            if tag.startswith("ct:Z:"):
-                rct1 = tag[5]
-                rct2 = tag[7]
-                read_conversion_type = rct1
+            if tag.startswith("rc:Z:"):
+                read_conversion_type = tag[5]
 
         if alignment_tag is None or original_bs_read is None or read_conversion_type is None:
             error_count += 1
@@ -475,7 +533,7 @@ def alignment_to_methylation(best_alignments, sequence_dict):
 
 
 
-def alignment_parse(work_dir, alingment_file_index=None, minimum_identity=50, minimum_mapq=20, discard_multimapped=True, pid="0_0"):
+def alignment_parse(work_dir, minimum_identity=50, minimum_mapq=20, discard_multimapped=True, pid="0_0"):
     # Alignment count, low confidence count, error count, multi-mapped alignment count
     counter1 = 0
     counter2 = 0
@@ -484,54 +542,34 @@ def alignment_parse(work_dir, alingment_file_index=None, minimum_identity=50, mi
 
     ts = time.time()
 
-    alignment = get_alignment_fps_from_work_dir(work_dir)
 
-    alignment_file_handles = []
-    if alingment_file_index is None:
-        for a in alignment:
-            alignment_file_handles.append(open(a))
-    else:
-        alignment_file_handles.append(open(alignment[alingment_file_index]))
-
+    alignment_fp = work_dir + "/alignment.gaf"
 
 
     lines_for_same_read = []
-    for alignment_file_handle in alignment_file_handles:
-
-        for l in alignment_file_handle:
-
+    with open(alignment_fp) as alignment_fh:
+        for l in alignment_fh:
             l = l.strip().split("\t")
 
-            # Example @A00584:440:HJLVHDSX2:2:1101:3007:1031C2T1R0
-            read_lane_loc = l[0][:-6]
-            conversion_type = l[0][-6:-3]
-            read_index = l[0][-2:]
-            read_name_wi = (read_lane_loc, read_index)
-
-            # change read name to read (name, read index)  (like: (xxx, R1) or (xxx, R2))
-            l[0] = read_name_wi
-            l.append("ct:Z:" + conversion_type)
-
-            # print(l)
-
+            query_name = l[0]
             if len(lines_for_same_read) == 0:
                 lines_for_same_read.append(l)
                 continue
 
-            if l[0][0] == lines_for_same_read[0][0][0]:
+            if query_name == lines_for_same_read[0][0]:
                 lines_for_same_read.append(l)
                 continue
-            else:
-                # Figure out the best alignment for the read pair
 
-                best_alignments, aligned_count, mpc, lcc = get_best_alignment_from_same_read_pair(
-                    lines_for_same_read,
-                    minimum_identity=minimum_identity,
-                    minimum_mapq=minimum_mapq,
-                    discard_multimapped=discard_multimapped
-                )
+            # Figure out the best alignment for the read pair.
+            best_alignments, aligned_count, mpc, lcc = get_best_alignment_from_same_read_pair(
+                lines_for_same_read,
+                minimum_identity=minimum_identity,
+                minimum_mapq=minimum_mapq,
+                discard_multimapped=discard_multimapped
+            )
 
-                lines_for_same_read = [l]
+            # Reset the buffer
+            lines_for_same_read = [l]
 
             counter1 += aligned_count
             counter2 += lcc
@@ -559,53 +597,20 @@ Total aligned reads: {total_alignment_count}
 Total multi-mapped reads: {multimapped_count}
 Low confidence count (low quality alignment in terms of block length and MapQ): {low_confidence_count}
 """
-    logging = f"{total_alignment_count}\t{multimapped_count}\t{low_confidence_count}"
+    # logging = f"{total_alignment_count}\t{multimapped_count}\t{low_confidence_count}"
     #  Inconsistent alignment entries: {error_count}
 
     # print(logging)
-
-    log_fh = open(f"{work_dir}/report_tmp_{pid}.txt", "w")
-    log_fh.write(logging)
-    log_fh.close()
-
-
-def alignment_parse_clean(work_dir):
-    total_alignment_count, multimapped_count, low_confidence_count = 0, 0, 0
-
-    for i in range(10):
-        for j in range(11):
-            fn = f"{work_dir}/report_tmp_{i}_{j}.txt"
-            if not os.path.exists(fn):
-                continue
-            fp = open(fn)
-            content = list(map(int, fp.read().strip().split("\t")))
-            fp.close()
-
-            total_alignment_count += content[0]
-            multimapped_count += content[1]
-            low_confidence_count += content[2]
-            os.remove(fn)
-
-    logging = f"""
-Total aligned reads: {total_alignment_count}
-Total multi-mapped reads: {multimapped_count}
-Low confidence count (low quality alignment in terms of block length and MapQ): {low_confidence_count}
-    """.strip()
 
     log_fh = open(f"{work_dir}/report.txt", "a")
     log_fh.write(logging)
     log_fh.close()
 
-    return None
 
-def get_alignment_fps_from_work_dir(work_dir):
-    res = []
-    for i in range(1000):
-        fp = f"{work_dir}/alignment.{i}.gaf"
-        if not os.path.exists(fp):
-            continue
-        res.append(fp)
-    return res
+
+
+
+
 
 
 # Deprecated
@@ -662,7 +667,7 @@ def call_single(
                 else:
                     mcall_tmp.write(f"\t{segment_pos}\t{base_strand}\t{category}\t{methylated}\n")
 
-    alignment_parse_clean(work_dir)
+
     return None
 
 
@@ -697,38 +702,31 @@ class WorkerConterAndTimer(object):
 
 
 # Worker Deamon Processes Functions
-def alignment_parse_worker(pid, work_dir, input_queue, output_queue, minimum_identity=50, minimum_mapq=20, discard_multimapped=True, batch_size=4096):
+def alignment_parse_worker(pid, work_dir, output_queue, minimum_identity=50, minimum_mapq=20, discard_multimapped=True, batch_size=4096):
     wct = WorkerConterAndTimer(process_name=f"Alignment Parsing {pid}")
     wct.start()
 
-    while True:
 
-        try:
-            alingment_file_index = input_queue.get(timeout=1)
-        except multiprocessing.queues.Empty:
-            break
+    batch = []
+    for r in alignment_parse(
+        work_dir,
+        minimum_identity=minimum_identity, minimum_mapq=minimum_mapq, discard_multimapped=discard_multimapped,
+        pid=f"{pid}"
+    ):
+        wct.count()
 
-        batch = []
-        for r in alignment_parse(
-            work_dir,
-            alingment_file_index=alingment_file_index,
-            minimum_identity=minimum_identity, minimum_mapq=minimum_mapq, discard_multimapped=discard_multimapped,
-            pid=f"{pid}_{alingment_file_index}"
-        ):
-            wct.count()
+        if len(r) == 0:
+            # No need to pass empty list
+            continue
 
-            if len(r) == 0:
-                # No need to pass empty list
-                continue
-
-            batch.append(r)
-            if len(batch) >= batch_size:
-                output_queue.put(batch)
-                batch = []
-
-        if len(batch) > 0:
+        batch.append(r)
+        if len(batch) >= batch_size:
             output_queue.put(batch)
             batch = []
+
+    if len(batch) > 0:
+        output_queue.put(batch)
+        batch = []
 
 
     print(f"Alignment Parser finished", file=sys.stderr)
@@ -886,7 +884,7 @@ def call_parallel(
 
     # maxsize is needed to prevent too much memory usage
     maxsize = 100
-    q0 = multiprocessing.Queue(maxsize=maxsize)
+    # q0 = multiprocessing.Queue(maxsize=maxsize) // Not needed any more
     q1 = multiprocessing.Queue(maxsize=maxsize)
     q2 = multiprocessing.Queue(maxsize=maxsize)
 
@@ -900,19 +898,13 @@ def call_parallel(
         assert isinstance(i, int)
 
 
-    for i in range(10):
-        q0.put(i)
-
-    alignment_parse_pool = []
-    for i in range(alignment_parse_worker_num):
-        alignment_parse_process = multiprocessing.Process(
-            name=f"MGAR{i}",
-            target=alignment_parse_worker,
-            args=(i, work_dir, q0, q1, minimum_identity, minimum_mapq, discard_multimapped),
-            kwargs={"batch_size": batch_size}
-        )
-        alignment_parse_process.start()
-        alignment_parse_pool.append(alignment_parse_process)
+    alignment_parse_process = multiprocessing.Process(
+        name=f"MGAR0",
+        target=alignment_parse_worker,
+        args=(i, work_dir, q1, minimum_identity, minimum_mapq, discard_multimapped),
+        kwargs={"batch_size": batch_size}
+    )
+    alignment_parse_process.start()
 
 
     gfa_process_pool = []
@@ -978,8 +970,7 @@ def call_parallel(
 
 
 
-        for app in alignment_parse_pool:
-            app.join()
+        alignment_parse_process.join()
 
         if not send_kill_signal_to_gfa_workers:
             for p in gfa_process_pool:
@@ -1002,7 +993,7 @@ def call_parallel(
 
         finished = True
 
-    alignment_parse_clean(work_dir)
+
     return None
 
 
@@ -1055,6 +1046,8 @@ def mcall_main(
         process_count=1, alignment_parse_worker_num=1, gfa_worker_num=1, batch_size=4096
 
 ):
+    #print("DEV version")
+    #sys.stderr.write("DEV version")
 
     start_ts = time.time()
     if process_count <= 1:
