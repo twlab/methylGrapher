@@ -1,20 +1,12 @@
-
 import os
 import sys
 import gzip
 import multiprocessing
 
-
 import mcall
 import utility
 
-
-
-
-
 conversion_types = ["C2T", "G2A"]
-
-
 
 
 def alignment_clenup(work_dir):
@@ -120,11 +112,7 @@ def alignment(work_dir="./", index_prefix="", output_format="gaf", thread=1, dir
     return
 
 
-
-
-
 def tmp_gaf_processing(tmp_gaf_fp):
-
     reads = {}
     result_gaf_str = ''
     with open(tmp_gaf_fp) as f:
@@ -150,7 +138,6 @@ def tmp_gaf_processing(tmp_gaf_fp):
                     r2 = True
                     pop_i = j
 
-
             assert not (r1 and r2)
             newl.pop(pop_i)
 
@@ -162,13 +149,10 @@ def tmp_gaf_processing(tmp_gaf_fp):
 
             newl.append(f'rc:Z:{read_conversion}')
 
-
             if query_name not in reads:
                 reads[query_name] = [[], []]
 
-            reads[query_name][ri-1].append(newl)
-
-
+            reads[query_name][ri - 1].append(newl)
 
     counter = [0, 0, 0, 0, 0]
     for query_name, read_pair_alignments in reads.items():
@@ -242,7 +226,6 @@ def tmp_gaf_processing(tmp_gaf_fp):
                     result_gaf_str += '\t'.join(best_alignments_by_as[0]) + '\n'
                     continue
 
-
                 # Do alignment share any common segments? If they do, it is multi-path alignment.
                 # And I do not consider them as multimapping
                 shared_segments = set()
@@ -263,14 +246,12 @@ def tmp_gaf_processing(tmp_gaf_fp):
                     counter[3] += 1
                     continue
 
-
                 # Hmm, still multimapping. Let's just output one of them.
                 result_gaf_str += '\t'.join(best_alignments_by_as[0]) + "\tmp:i:1" + '\n'
                 counter[4] += 1
-                
 
-    #counter2 = counter[:]
-    #for ic in range(len(counter2)):
+    # counter2 = counter[:]
+    # for ic in range(len(counter2)):
     #    counter2[ic] = counter2[ic] / counter[0] * 100
 
     return result_gaf_str
@@ -299,8 +280,6 @@ def merger_gaf_writer_worker(pid, worker_num, result_queue, output_fp):
                 continue
             fh.write(result_gaf_str)
     return
-
-                
 
 
 def alignment_merge_main(working_dir, worker_num=20):
@@ -335,7 +314,6 @@ def alignment_merge_main(working_dir, worker_num=20):
     return
 
 
-
 def alignment_main(fq1, fq2, work_dir, index_prefix, compress=True, thread=1, directional=True):
     utility.fastq_converter(fq1, fq2, work_dir, compress=compress, thread=thread, directional=directional)
 
@@ -347,15 +325,10 @@ def alignment_main(fq1, fq2, work_dir, index_prefix, compress=True, thread=1, di
     return
 
 
-
-
-
-
 if __name__ == '__main__':
     working_dir = sys.argv[1]
     alignment_merge_main(working_dir, worker_num=20)
     sys.exit(0)
-
 
 
 

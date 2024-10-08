@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 
 __author__ = "Wenjin Zhang"
-__copyright__ = "Copyright 2023, Ting Wang Lab"
+__copyright__ = "Copyright 2023-2024, Ting Wang Lab"
 __credits__ = ["Juan Macias"]
 __license__ = "MIT"
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __maintainer__ = "Wenjin Zhang"
 __email__ = "wenjin@wustl.edu"
-
 
 import os
 import sys
@@ -17,27 +16,10 @@ import mcall
 import utility
 import alignments
 
-
 # Global variables
 conversion_types = ["C2T", "G2A"]
 
-
-
 help = utility.HelpDocument()
-
-
-
-"""
-TODO List:
-3. CpG merging
-    build CpG site catalog
-    merge CpG sites
-4. Documentation
-"""
-
-
-
-
 
 
 
@@ -61,9 +43,6 @@ if __name__ == "__main__":
     except:
         thread = 1
 
-
-
-
     if len(args) == 0:
         print("No command specified. Use 'help' for more information.")
         print(help.help_text())
@@ -71,7 +50,7 @@ if __name__ == "__main__":
 
     command = args.pop(0)
     command = command.lower()
-    if command not in ["preparegenome", "preparelibrary", "align", "methylcall", "qc", "help", "-h", "--help", "main"]:
+    if command not in ["preparegenome", "align", "methylcall", "conversionrate", "mergecpg", "help", "-h", "--help", "main"]:
         print(f"Unknown command: {command}")
         sys.exit(1)
 
@@ -94,12 +73,9 @@ if __name__ == "__main__":
         thread = int(kvargs["t"])
         del kvargs["t"]
 
-
     if command in ["help", "-h", "--help"]:
         print(help.help_text())
         sys.exit(0)
-
-
 
     # Convert genome graph (in gfa format) to full C->T and G->A converted gfa file.
     if command == "preparegenome":
@@ -112,7 +88,7 @@ if __name__ == "__main__":
         original_gfa_with_lambda = prefix + ".wl.gfa"
         gfa_c2t = prefix + ".wl.C2T.gfa"
         gfa_g2a = prefix + ".wl.G2A.gfa"
-
+        graph_all_cpg_fp = prefix + ".cpg.tsv"
 
         lambda_ref = kvargs.get("lp", None)
         lambda_segment_id = gfa.add_lambda_genome_to_gfa(original_gfa_file_path, original_gfa_with_lambda, lambda_ref)
@@ -121,7 +97,6 @@ if __name__ == "__main__":
             freport.write("NO lambda phage genome provided. \nNOT able to estimate conversion rate.")
         else:
             freport.write(f"Insert lambda phage genome into genome graph as segment: {lambda_segment_id}\n")
-
 
         graph_trim_flag = kvargs.get("trim", "Y").lower() in "yestrue"
         g = gfa.GraphicalFragmentAssemblyMemory()
@@ -151,10 +126,10 @@ if __name__ == "__main__":
                 freport.write(line)
             se.wait()
 
+        utility.get_all_cpg_from_graph(original_gfa_file_path, graph_all_cpg_fp)
+
         freport.close()
         sys.exit(0)
-
-
 
     # Alignment and related stuff...
     if command == "align":
@@ -178,11 +153,9 @@ if __name__ == "__main__":
         else:
             directional = False
 
-
-        alignments.alignment_main(fq1, fq2, work_dir, index_prefix, compress=compress, thread=thread, directional=directional)
+        alignments.alignment_main(fq1, fq2, work_dir, index_prefix, compress=compress, thread=thread,
+                                  directional=directional)
         sys.exit(0)
-
-
 
     # Call methylation
     if command == "methylcall":
@@ -219,6 +192,25 @@ if __name__ == "__main__":
 
         sys.exit(0)
 
+    # Conversion rate estimation
+    if command == "conversionrate":
+        work_dir = kvargs.get("work_dir", "./")
+        index_prefix = kvargs["index_prefix"]
+
+        s = utility.estimate_conversion_rate_print(index_prefix, work_dir)
+        print(s)
+        sys.exit(0)
+
+    # merge CpG
+    if command == "mergecpg":
+        work_dir = kvargs.get("work_dir", "./")
+        index_prefix = kvargs["index_prefix"]
+
+        graph_all_cpg_fp = index_prefix + ".cpg.tsv"
+        cytosine_fp = work_dir + "/graph.methyl"
+        merged_cytosine_in_cpg_context_fp = work_dir + "/graph.cpg.tsv"
+
+        utility.merge_graph_cytosines(graph_all_cpg_fp, cytosine_fp, merged_cytosine_in_cpg_context_fp)
 
     # One command to run all
     if command == "main":
@@ -254,11 +246,9 @@ if __name__ == "__main__":
             minimum_mapq = int(kvargs["minimum_mapq"])
         if "discard_multimapped" in kvargs:
             discard_multimapped = kvargs["discard_multimapped"].lower() in "yestrue"
-        
+
         assert minimum_identity >= 0
         assert minimum_mapq >= 0
-
-
 
         batch_size = 4096
         if "batch_size" in kvargs:
@@ -276,10 +266,7 @@ if __name__ == "__main__":
             process_count=thread, alignment_parse_worker_num=1, gfa_worker_num=gfa_worker_num, batch_size=batch_size
         )
 
-
-
         sys.exit(0)
-
 
 
 
