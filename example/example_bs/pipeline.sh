@@ -20,7 +20,7 @@ methylGrapher Main -fq1 ./R1.fastq -fq2 ./R2.fastq -index_prefix $genome_prefix 
 
 
 # 3. Simulate bisulfite conversion rate
-methylGrapher CoversionRate -index_prefix $genome_prefix -work_dir $work_dir
+methylGrapher ConversionRate -index_prefix $genome_prefix -work_dir $work_dir
 
 
 # (OPTIONAL) sorting output
