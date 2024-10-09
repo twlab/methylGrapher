@@ -1,4 +1,4 @@
-FROM python:3.11-bullseye
+FROM python:3.12-bullseye
 
 COPY ./dep.sh ./
 COPY ./FastUniq-1.1.tar.gz ./

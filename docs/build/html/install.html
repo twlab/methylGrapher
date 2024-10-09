@@ -1,22 +1,21 @@
+
+
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="./">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Installation &mdash; methylGrapher  documentation</title>
-      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <!--[if lt IE 9]>
-    <script src="_static/js/html5shiv.min.js"></script>
-  <![endif]-->
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=7ab3649f" />
+
   
-        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script src="_static/doctools.js"></script>
-        <script src="_static/sphinx_highlight.js"></script>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -29,11 +28,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> methylGrapher
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            methylGrapher
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -49,6 +52,7 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="process.html">Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="filetype.html">File Types</a></li>
 <li class="toctree-l1"><a class="reference internal" href="example.html">Toy Example</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contact.html">Contact us</a></li>
 </ul>
@@ -66,7 +70,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a></li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
       <li class="breadcrumb-item active">Installation</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/install.rst.txt" rel="nofollow"> View page source</a>
@@ -78,13 +82,13 @@
            <div itemprop="articleBody">
              
   <section id="installation">
-<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this heading"></a></h1>
+<h1>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h1>
 <section id="prerequisites">
-<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this heading"></a></h2>
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading"></a></h2>
 <p>Adapter Trimming: <a class="reference external" href="https://github.com/FelixKrueger/TrimGalore">Trim Galore!</a></p>
 <p>Deduplication: <a class="reference external" href="https://sourceforge.net/projects/fastuniq/files/">FastUniq</a></p>
 <p>Alignment: <a class="reference external" href="https://github.com/vgteam/vg">VG Giraffe</a></p>
-<p>Python3: Tested on 3.9, 3.10 and 3.12.
+<p>Python3: Tested on 3.9, 3.10, 3.11 and 3.12.
 I would recommend 3.12 as it is the latest version and has the best performance.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -92,26 +96,26 @@ I would recommend 3.12 as it is the latest version and has the best performance.
 </div>
 </section>
 <section id="install-via-pip">
-<h2>Install via PIP<a class="headerlink" href="#install-via-pip" title="Permalink to this heading"></a></h2>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>pip install methylGrapher
+<h2>Install via PIP<a class="headerlink" href="#install-via-pip" title="Link to this heading"></a></h2>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>methylGrapher
 </pre></div>
 </div>
 </section>
 <section id="install-via-conda">
-<h2>Install via CONDA<a class="headerlink" href="#install-via-conda" title="Permalink to this heading"></a></h2>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>conda create -n methylGrapher <span class="nv">python</span><span class="o">=</span><span class="m">3</span>.9
-conda activate methylGrapher
-conda install bioconda::vg
-pip install methylGrapher
+<h2>Install via CONDA<a class="headerlink" href="#install-via-conda" title="Link to this heading"></a></h2>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>methylGrapher<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
+conda<span class="w"> </span>activate<span class="w"> </span>methylGrapher
+conda<span class="w"> </span>install<span class="w"> </span>bioconda::vg
+pip<span class="w"> </span>install<span class="w"> </span>methylGrapher
 </pre></div>
 </div>
 </section>
 <section id="use-docker">
-<h2>Use Docker<a class="headerlink" href="#use-docker" title="Permalink to this heading"></a></h2>
+<h2>Use Docker<a class="headerlink" href="#use-docker" title="Link to this heading"></a></h2>
 <p><a class="reference external" href="https://hub.docker.com/repository/docker/wenjin27/methylgrapher/general">Docker Hub</a></p>
 </section>
 <section id="source-code">
-<h2>Source code<a class="headerlink" href="#source-code" title="Permalink to this heading"></a></h2>
+<h2>Source code<a class="headerlink" href="#source-code" title="Link to this heading"></a></h2>
 <p><a class="reference external" href="https://github.com/twlab/MethylGrapher">The source code</a></p>
 </section>
 </section>

@@ -16,7 +16,11 @@ methylGrapher PrepareGenome -gfa $input_gfa -lp ./lambda.fa -prefix $genome_pref
 
 
 # 2. Run MethylGrapher with one-line command
-methylGrapher main -fq1 ./R1.fastq -fq2 ./R2.fastq -index_prefix $genome_prefix -work_dir $work_dir -directional Y
+methylGrapher Main -fq1 ./R1.fastq -fq2 ./R2.fastq -index_prefix $genome_prefix -work_dir $work_dir -directional Y
+
+
+# 3. Simulate bisulfite conversion rate
+methylGrapher CoversionRate -index_prefix $genome_prefix -work_dir $work_dir
 
 
 # (OPTIONAL) sorting output

@@ -15,6 +15,7 @@ methylGrapher: Genome-Graph-Based DNA Methylation Analysis Using Whole Genome Bi
 
    install
    process
+   filetype
    example
    contact
 

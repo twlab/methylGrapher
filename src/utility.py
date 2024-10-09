@@ -631,7 +631,7 @@ class HelpDocument(object):
 """.strip()
 
     def version(self):
-        return "0.1.0"
+        return "0.1.1"
 
     def help_text_raw(self):
         return """

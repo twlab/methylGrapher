@@ -107,37 +107,6 @@ Optional arguments
 
 
 
-PrepareLibrary
---------------------
-
-Description
-~~~~~~~~~~~~~~~~~~~~~~
-
-It converts your input (FASTQs) into fully G->A and C->T converted FASTQ file.
-For single-end reads, just provide FASTQ file path to -fq1 argument.
-
-Example Usage
-~~~~~~~~~~~~~~~~~~~~~~
-.. code-block:: shell
-
-    methylGrapher PrepareLibrary -work_dir TheWorkingDir -fq1 Fastq1FilePath -fq2 Fastq2FilePath
-
-
-Required arguments
-~~~~~~~~~~~~~~~~~~~~~~
--work_dir <working_directory>
-
--fq1 <fastq1_file_path>
-
-
-
-Optional arguments
-~~~~~~~~~~~~~~~~~~~~~~
--fq2 <fastq2_file_path>
-
--directional (default: Y)
-
-
 
 
 
@@ -228,4 +197,57 @@ Optional arguments
 -batch_size <batch_size> (default: 4096)
 
 -t <threads_used> (default: 1)
+
+
+
+
+
+
+
+
+|
+|
+|
+|
+|
+
+
+
+
+
+
+ConversionRate
+--------------------
+
+Description
+~~~~~~~~~~~~~~~~~~~~~~
+
+Estimate the conversion rate from the spike-in genome.
+
+Example Usage
+~~~~~~~~~~~~~~~~~~~~~~
+.. code-block:: shell
+
+    methylGrapher ConversionRate -work_dir TheWorkingDir -index_prefix PrepareGenomeOutputPrefix
+
+
+Required arguments
+~~~~~~~~~~~~~~~~~~~~~~
+-work_dir <working_directory>
+
+-index_prefix <index_prefix>
+
+
+
+
+
+|
+|
+|
+|
+|
+
+
+
+
 
