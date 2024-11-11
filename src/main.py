@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     command = args.pop(0)
     command = command.lower()
-    if command not in ["preparegenome", "align", "methylcall", "conversionrate", "mergecpg", "help", "-h", "--help", "main"]:
+    if command not in ["preparegenome", "align", "methylcall", "conversionrate", "mergecpg", "help", "-h", "--help", "main", "mergegaf"]:
         print(f"Unknown command: {command}")
         sys.exit(1)
 
@@ -268,7 +268,14 @@ if __name__ == "__main__":
 
         sys.exit(0)
 
+    # TMP fix if memory usage is too high
+    if command == "mergegaf":
+        work_dir = kvargs.get("work_dir", "./")
 
+        alignments.alignment_merge_main(work_dir, worker_num=thread)
+        alignments.alignment_clenup(work_dir)
+
+        sys.exit(0)
 
 
 

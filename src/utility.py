@@ -468,7 +468,7 @@ def fastq_converter_worker_function(input_fastq_fp, output_fastq_fp, conversion_
             else:
                 original_qn1 = original_query_name
 
-            reminder = int(i / 4) % 1000
+            reminder = int(i / 4) % 10000
             converted_seq = seq.replace(conversion[0], conversion[1])
 
             newl = f"{original_qn1}_{conversion_str}_{reminder}_{seq}\n{converted_seq}\n+\n{phred}\n"

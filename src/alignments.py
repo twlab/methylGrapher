@@ -1,10 +1,33 @@
 import os
 import sys
 import gzip
+import resource
 import multiprocessing
 
 import mcall
 import utility
+
+
+
+
+tmp_alignment_file_count = 10000
+
+
+# The OS may have limit of how many file can you open at the same time.
+soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
+assert tmp_alignment_file_count+500 < hard_limit
+resource.setrlimit(resource.RLIMIT_NOFILE, (tmp_alignment_file_count+500, hard_limit))
+
+
+
+
+
+
+
+
+
+
+
 
 conversion_types = ["C2T", "G2A"]
 
@@ -19,7 +42,7 @@ def alignment_clenup(work_dir):
                     os.remove(fn)
 
     # TMP alignment files removal
-    for i in range(1000):
+    for i in range(tmp_alignment_file_count):
         alignment_out = f"{work_dir}/alignment.{i}.gaf"
         if os.path.exists(alignment_out):
             os.remove(alignment_out)
@@ -40,7 +63,7 @@ def alignment(work_dir="./", index_prefix="", output_format="gaf", thread=1, dir
 
     alignment_file_path = []
     alignment_outs = {}
-    for i in range(1000):
+    for i in range(tmp_alignment_file_count):
         alignment_out = f"{work_dir}/alignment.{i}.{output_format}"
         alignment_file_path.append(alignment_out)
 
@@ -283,8 +306,6 @@ def merger_gaf_writer_worker(pid, worker_num, result_queue, output_fp):
 
 
 def alignment_merge_main(working_dir, worker_num=20):
-    if worker_num > 20:
-        worker_num = 20
     output_gaf_fp = os.path.join(working_dir, 'alignment.gaf')
 
     input_queue = multiprocessing.Queue()
@@ -299,7 +320,7 @@ def alignment_merge_main(working_dir, worker_num=20):
     writer_worker = multiprocessing.Process(target=merger_gaf_writer_worker, args=(0, worker_num, result_queue, output_gaf_fp))
     writer_worker.start()
 
-    for i in range(1000):
+    for i in range(tmp_alignment_file_count):
         input_gaf_fp = os.path.join(working_dir, f'alignment.{i}.gaf')
         input_queue.put(input_gaf_fp)
 
