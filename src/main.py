@@ -4,7 +4,7 @@ __author__ = "Wenjin Zhang"
 __copyright__ = "Copyright 2023-2024, Ting Wang Lab"
 __credits__ = ["Juan Macias"]
 __license__ = "MIT"
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 __maintainer__ = "Wenjin Zhang"
 __email__ = "wenjin@wustl.edu"
 
@@ -98,18 +98,23 @@ if __name__ == "__main__":
         else:
             freport.write(f"Insert lambda phage genome into genome graph as segment: {lambda_segment_id}\n")
 
-        graph_trim_flag = kvargs.get("trim", "Y").lower() in "yestrue"
-        g = gfa.GraphicalFragmentAssemblyMemory()
-        g.parse(original_gfa_with_lambda, keep_link=True)
-        g.write_converted(gfa_c2t, "C", "T", SNV_trim=graph_trim_flag)
+        graph_trim_flag = kvargs.get("trim", "N").lower() in "yestrue"
 
-        del g
 
-        g = gfa.GraphicalFragmentAssemblyMemory()
-        g.parse(original_gfa_with_lambda, keep_link=True)
-        g.write_converted(gfa_g2a, "G", "A", SNV_trim=graph_trim_flag)
+        if graph_trim_flag:
+            g = gfa.GraphicalFragmentAssemblyMemory()
+            g.parse(original_gfa_with_lambda, keep_link=True)
+            g.write_converted(gfa_c2t, "C", "T", SNV_trim=graph_trim_flag)
 
-        del g
+            del g
+
+            g = gfa.GraphicalFragmentAssemblyMemory()
+            g.parse(original_gfa_with_lambda, keep_link=True)
+            g.write_converted(gfa_g2a, "G", "A", SNV_trim=graph_trim_flag)
+
+            del g
+        else:
+            utility.gfa_converter(original_gfa_with_lambda, prefix+".wl", compress=False)
 
         for gfa_file_path in [gfa_c2t, gfa_g2a]:
             index_prefix = gfa_file_path[:-4]

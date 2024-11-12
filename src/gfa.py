@@ -345,6 +345,32 @@ class GraphicalFragmentAssemblyMemorySegmentOptimized(GraphicalFragmentAssemblyA
         return res
 
 
+# Store segment length in memory
+class GraphicalFragmentAssemblySegmentLengthMemory(object):
+
+    def __init__(self):
+        self.clear()
+
+    def clear(self):
+        self._segment_length = {}
+
+    def parse(self, gfa_file):
+        with open(gfa_file) as gfa_fh:
+            for l in gfa_fh:
+                if l[0] not in "S":
+                    continue
+
+                l = l.strip().split("\t")
+
+                if l[0] == "S":
+                    rt, segID, seq, *tags = l
+                    # sequence, tag, links, parent_links_count
+                    self._segment_length[segID] = len(seq)
+
+
+    def get_sequence_length_by_segment_ID(self, segment_ID):
+        return self._segment_length[segment_ID]
+
 
 
 

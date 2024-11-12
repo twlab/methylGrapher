@@ -131,8 +131,8 @@ def gfa_converter(input_gfa, output_file_prefix, compress=True, thread=1):
             l = l.strip().split('\t')
 
             if l[0] == 'S':
-                l[2] = l[2].replace(conversion[0], conversion[1])
-                l[2] = l[2].replace(conversion[0].lower(), conversion[1].lower())
+                sc = l[2].upper().replace(conversion[0], conversion[1])
+                l[2] = sc
 
             newl = '\t'.join(l) + '\n'
 
@@ -631,7 +631,7 @@ class HelpDocument(object):
 """.strip()
 
     def version(self):
-        return "0.1.1"
+        return "0.1.2"
 
     def help_text_raw(self):
         return """

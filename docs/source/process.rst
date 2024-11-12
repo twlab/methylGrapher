@@ -11,9 +11,6 @@ Description
 ~~~~~~~~~~~~~~~~~~~~~~
 This process involves transforming the genome graph from GFA format into two fully converted genome graphs: one depleted of C bases and another depleted of G bases. Additionally, if desired, you may include a spike-in genome in FASTA format to estimate the conversion rate in a single step further.
 
-.. note::
-    It's important to note that in the C-to-T genome graph, if both C and T segments are positioned identically—meaning they share the same parent and child segments, and each has only one parent and one child—the T segments are removed. Additionally, any associated links and paths are redirected to the corresponding C segment. This principle also applies in the G-to-A genome graph.
-
 Example Usage
 ~~~~~~~~~~~~~~~~~~~~~~
 .. code-block:: shell
