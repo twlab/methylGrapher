@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 
 __author__ = "Wenjin Zhang"
-__copyright__ = "Copyright 2023-2024, Ting Wang Lab"
+__copyright__ = "Copyright 2023-2025, Ting Wang Lab"
 __credits__ = ["Juan Macias"]
 __license__ = "MIT"
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 __maintainer__ = "Wenjin Zhang"
 __email__ = "wenjin@wustl.edu"
+
+
 
 import os
 import sys
@@ -50,7 +52,7 @@ if __name__ == "__main__":
 
     command = args.pop(0)
     command = command.lower()
-    if command not in ["preparegenome", "align", "methylcall", "conversionrate", "mergecpg", "help", "-h", "--help", "main", "mergegaf"]:
+    if command not in ["preparegenome", "align", "methylcall", "conversionrate", "mergecpg", "help", "-h", "--help", "main", "mergegaf", "vg_check"]:
         print(f"Unknown command: {command}")
         sys.exit(1)
 
@@ -72,6 +74,8 @@ if __name__ == "__main__":
     if "t" in kvargs:
         thread = int(kvargs["t"])
         del kvargs["t"]
+    if "vg_path" in kvargs:
+        vg_path = kvargs["vg_path"]
 
     if command in ["help", "-h", "--help"]:
         print(help.help_text())
@@ -84,6 +88,9 @@ if __name__ == "__main__":
 
         fn_report = prefix + ".prepare.genome.report.txt"
         freport = open(fn_report, "w")
+
+        found, vg_log = utility.vg_binary_check(vg_path=vg_path)
+        freport.write(vg_log+"\n\n")
 
         original_gfa_with_lambda = prefix + ".wl.gfa"
         gfa_c2t = prefix + ".wl.C2T.gfa"
@@ -279,6 +286,14 @@ if __name__ == "__main__":
 
         alignments.alignment_merge_main(work_dir, worker_num=thread)
         alignments.alignment_clenup(work_dir)
+
+        sys.exit(0)
+
+
+    # Check if vg is installed and in the path
+    if command == "vg_check":
+        found_vg_binary, log = utility.vg_binary_check(vg_path=vg_path)
+        print(log)
 
         sys.exit(0)
 

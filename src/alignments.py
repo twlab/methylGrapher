@@ -3,6 +3,7 @@ import sys
 import gzip
 import resource
 import multiprocessing
+import time
 
 import mcall
 import utility
@@ -10,7 +11,7 @@ import utility
 
 
 
-tmp_alignment_file_count = 10000
+tmp_alignment_file_count = 1000
 
 
 # The OS may have limit of how many file can you open at the same time.
@@ -97,7 +98,31 @@ def alignment(work_dir="./", index_prefix="", output_format="gaf", thread=1, dir
 
                 alignment_log = f"{work_dir}/alignment.Ref_{ref_type}.R1_{read_type1}.R2_{read_type2}.log"
 
-                cmd = f"vg giraffe -p -t {thread} -o {output_format} -M 2 --named-coordinates -Z {index_prefix}.giraffe.gbz -m {index_prefix}.min -d {index_prefix}.dist {giraffe_input}"
+
+                dist_fp = f"{index_prefix}.dist"
+                gbz_fp = f"{index_prefix}.giraffe.gbz"
+
+                min1_fp = f"{index_prefix}.min"
+                min2_fp = f"{index_prefix}.shortread.withzip.min"
+                zipcode_fp = f"{index_prefix}.shortread.zipcodes"
+
+
+                assert os.path.exists(dist_fp)
+                assert os.path.exists(gbz_fp)
+
+                assert os.path.exists(min1_fp) or os.path.exists(min2_fp)
+                if os.path.exists(min2_fp):
+                    assert os.path.exists(zipcode_fp)
+
+
+                index_params = f"-Z {gbz_fp} -d {dist_fp}"
+                if os.path.exists(min1_fp):
+                    index_params += f" -m {min1_fp}"
+                else:
+                    index_params += f" -m {min2_fp} -z {zipcode_fp}"
+
+
+                cmd = f"vg giraffe -p -t {thread} -o {output_format} -M 2 --named-coordinates {index_params} {giraffe_input}"
                 # print(cmd)
                 se = utility.SystemExecute()
                 fout, flog = se.execute(cmd, stdout=None, stderr=alignment_log)
@@ -336,10 +361,13 @@ def alignment_merge_main(working_dir, worker_num=20):
 
 
 def alignment_main(fq1, fq2, work_dir, index_prefix, compress=True, thread=1, directional=True):
-    utility.fastq_converter(fq1, fq2, work_dir, compress=compress, thread=thread, directional=directional)
+    utility.fastq_converter(fq1, fq2, work_dir, compress=compress, thread=thread, directional=directional, split_num=tmp_alignment_file_count)
 
     alignment(work_dir=work_dir, index_prefix=index_prefix, output_format="gaf", thread=thread, directional=directional, compress=compress)
     alignment_merge_main(work_dir, worker_num=thread)
+
+    # Just to wait a bit for alignment_merge_main to finish and garbage collection
+    time.sleep(5)
 
     alignment_clenup(work_dir)
 

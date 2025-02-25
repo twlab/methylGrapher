@@ -1,4 +1,6 @@
+
 import os
+import re
 import sys
 import gzip
 import time
@@ -8,6 +10,8 @@ import string
 import hashlib
 import subprocess
 import multiprocessing
+
+
 
 
 def sequence_reverse_complement(seq):
@@ -432,7 +436,7 @@ def merge_graph_cytosines(cpg_fp, cytosine_fp, out_fp):
     return
 
 
-def fastq_converter_worker_function(input_fastq_fp, output_fastq_fp, conversion_str, read_counts):
+def fastq_converter_worker_function(input_fastq_fp, output_fastq_fp, conversion_str, read_counts, split_num):
     utils = Utility()
 
     conversion = conversion_str.split('2')
@@ -468,7 +472,7 @@ def fastq_converter_worker_function(input_fastq_fp, output_fastq_fp, conversion_
             else:
                 original_qn1 = original_query_name
 
-            reminder = int(i / 4) % 10000
+            reminder = int(i / 4) % split_num
             converted_seq = seq.replace(conversion[0], conversion[1])
 
             newl = f"{original_qn1}_{conversion_str}_{reminder}_{seq}\n{converted_seq}\n+\n{phred}\n"
@@ -504,7 +508,7 @@ def fastq_converter_worker_function(input_fastq_fp, output_fastq_fp, conversion_
     return 0
 
 
-def fastq_converter(fq1, fq2, workdir, compress=True, thread=1, directional=True):
+def fastq_converter(fq1, fq2, workdir, compress=True, thread=1, directional=True, split_num=1000):
     report_file_handle = open(f"{workdir}/report.txt", 'a')
 
     pool = []
@@ -532,7 +536,11 @@ def fastq_converter(fq1, fq2, workdir, compress=True, thread=1, directional=True
             if compress:
                 output_fastq += '.gz'
 
-            p = multiprocessing.Process(target=fastq_converter_worker_function, args=(input_fastq, output_fastq, conversion_str, read_counts))
+            p = multiprocessing.Process(
+                target=fastq_converter_worker_function,
+                args=(input_fastq, output_fastq, conversion_str, read_counts, split_num)
+            )
+
             p.start()
             pool.append(p)
 
@@ -616,6 +624,41 @@ def estimate_conversion_rate_print(index_prefix, work_dir):
     return res
 
 
+def vg_binary_check(vg_path=None):
+    fine = False
+    if vg_path == None:
+        vg_path = "vg"
+
+        try:
+            config = ConfigParser("config.ini")
+            vg_path = config.get("default", "vg_path")
+        except:
+            pass
+
+    cmd = f"{vg_path} version"
+
+    vgp = SystemExecute()
+    stdout, stderr = vgp.execute(cmd)
+    vgp.wait()
+
+    res = f"Checking vg binary @ {vg_path}\n"
+
+    for l in stdout:
+        res += l.decode('utf-8')
+
+    for l in stderr:
+        res += l.decode('utf-8')
+
+    x = len(re.compile(r"vg version v\d*.\d*.\d*").findall(res))
+    if x == 0:
+        res += "Error: Cannot find vg version\n"
+    else:
+        res += "Success: vg binary seems to be fine\n"
+        fine = True
+
+    return fine, res
+
+
 class HelpDocument(object):
 
     def __init__(self):
@@ -631,7 +674,7 @@ class HelpDocument(object):
 """.strip()
 
     def version(self):
-        return "0.1.2"
+        return "0.1.3"
 
     def help_text_raw(self):
         return """
