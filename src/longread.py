@@ -171,7 +171,7 @@ def bam_sam_to_fasta(bsam_fp, fasta_fp):
             interval = mm_tag[i] + 1
 
             addonefix = 0
-            if i = =0:
+            if i == 0:
                 interval -= 1
 
                 if mm_tag[i] == 0:
@@ -368,11 +368,11 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
                     duration = time.time() - time_start
 
                     log_message = f"Processed {counter_total} alignment\n"
-                    log_message += f"\tInformative alignment: {counter_pass}({counter_pas s /counter_tota l *100:0.1f}%)\n"
-                    log_message += f"\tMultimapped alignment: {counter_skip_secondary}({counter_skip_secondar y /counter_tota l *100:0.1f}%)\n"
-                    log_message += f"\tNo methylation data  : {counter_issue_no_methylation}({counter_issue_no_methylatio n /counter_tota l *100:0.1f}%)\n"
+                    log_message += f"\tInformative alignment: {counter_pass}({counter_pass /counter_total *100:0.1f}%)\n"
+                    log_message += f"\tMultimapped alignment: {counter_skip_secondary}({counter_skip_secondary /counter_total *100:0.1f}%)\n"
+                    log_message += f"\tNo methylation data  : {counter_issue_no_methylation}({counter_issue_no_methylation /counter_total *100:0.1f}%)\n"
 
-                    log_message += f"Time used on extraction: {duration:.1f}s, {duration / counter_tota l *1000:.1f}ms per alignment on average\n"
+                    log_message += f"Time used on extraction: {duration:.1f}s, {duration / counter_total *1000:.1f}ms per alignment on average\n"
 
                     log_message += "\n"
                     # print(counter_total, counter_pass, counter_issue_no_methylation, counter_issue, duration)
@@ -573,8 +573,7 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
                             if corresponding_segment_pos < path_segment_length[segID]:
                                 corresponding_segment_ID = segID
                                 if not direction:
-                                    corresponding_segment_pos = path_segment_length
-                                                                    [segID] - corresponding_segment_pos - 1
+                                    corresponding_segment_pos = path_segment_length[segID] - corresponding_segment_pos - 1
 
                                 break
 
@@ -619,7 +618,7 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
                                 if csp1 < 0:
                                     csp1 = 0
                             # This is to check whether I am aligning CG within the read to CG in the segment
-                            print(path_seq[pos_in_abs_path: pos_in_abs_pat h +2], query_seq[pos_in_abs_read:pos_in_abs_rea d +2], segment_seq[csp1: csp2], met_flag)
+                            print(path_seq[pos_in_abs_path: pos_in_abs_path +2], query_seq[pos_in_abs_read:pos_in_abs_read +2], segment_seq[csp1: csp2], met_flag)
 
 
                         if discard_cg_mismatch:

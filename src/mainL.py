@@ -86,6 +86,16 @@ if __name__ == "__main__":
             debug = True
 
 
+        if args.discard_cg_mismatch:
+            if args.discard_cg_mismatch.lower() in ['false', 'f', 'no', 'n']:
+                discard_mismatched_cg = False
+            elif args.discard_cg_mismatch.lower() in ['true', 't', 'yes', 'y']:
+                discard_mismatched_cg = True
+            else:
+                print('Invalid value for discard_cg_mismatch. Please use true or false', file=sys.stderr)
+                sys.exit(1)
+
+
 
 
         # Log parameters
@@ -115,14 +125,6 @@ if __name__ == "__main__":
             thread = int(args.t)
         if args.debug:
             debug = True
-        if args.discard_cg_mismatch:
-            if args.discard_cg_mismatch.lower() in ['false', 'f', 'no', 'n']:
-                discard_mismatched_cg = False
-            elif args.discard_cg_mismatch.lower() in ['true', 't', 'yes', 'y']:
-                discard_mismatched_cg = True
-            else:
-                print('Invalid value for discard_cg_mismatch. Please use true or false', file=sys.stderr)
-                sys.exit(1)
         if args.verbose:
             if args.verbose.lower() in ['false', 'f', 'no', 'n']:
                 verbose = False
