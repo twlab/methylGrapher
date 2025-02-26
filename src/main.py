@@ -165,8 +165,12 @@ if __name__ == "__main__":
         else:
             directional = False
 
-        alignments.alignment_main(fq1, fq2, work_dir, index_prefix, compress=compress, thread=thread,
-                                  directional=directional)
+        alignments.alignment_main(fq1, fq2, work_dir, index_prefix,
+                                  compress=compress,
+                                  thread=thread,
+                                  directional=directional,
+                                  vg_path=vg_path
+                                  )
         sys.exit(0)
 
     # Call methylation

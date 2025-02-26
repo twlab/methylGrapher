@@ -51,7 +51,7 @@ def alignment_clenup(work_dir):
     return
 
 
-def alignment(work_dir="./", index_prefix="", output_format="gaf", thread=1, directional=True, compress=True):
+def alignment(work_dir="./", index_prefix="", output_format="gaf", thread=1, directional=True, compress=True, vg_path="vg"):
     index_prefix_ct = index_prefix + ".wl.C2T"
     index_prefix_ga = index_prefix + ".wl.G2A"
 
@@ -117,13 +117,19 @@ def alignment(work_dir="./", index_prefix="", output_format="gaf", thread=1, dir
 
                 index_params = f"-Z {gbz_fp} -d {dist_fp}"
                 if os.path.exists(min1_fp):
+                    # v1.62.0 and lower
                     index_params += f" -m {min1_fp}"
                 else:
+                    # v1.63.0 and higher
                     index_params += f" -m {min2_fp} -z {zipcode_fp}"
 
 
-                cmd = f"vg giraffe -p -t {thread} -o {output_format} -M 2 --named-coordinates {index_params} {giraffe_input}"
+                cmd = f"{vg_path} giraffe -p -t {thread} -o {output_format} -M 2 --named-coordinates {index_params} {giraffe_input}"
                 # print(cmd)
+                with open(alignment_log, "w") as alignment_log_fh:
+                    alignment_log_fh.write("Command used: \n")
+                    alignment_log_fh.write(cmd + "\n\n")
+
                 se = utility.SystemExecute()
                 fout, flog = se.execute(cmd, stdout=None, stderr=alignment_log)
                 for line in fout:
@@ -360,10 +366,21 @@ def alignment_merge_main(working_dir, worker_num=20):
     return
 
 
-def alignment_main(fq1, fq2, work_dir, index_prefix, compress=True, thread=1, directional=True):
-    utility.fastq_converter(fq1, fq2, work_dir, compress=compress, thread=thread, directional=directional, split_num=tmp_alignment_file_count)
+def alignment_main(fq1, fq2, work_dir, index_prefix, compress=True, thread=1, directional=True, vg_path="vg"):
+    utility.fastq_converter(fq1, fq2, work_dir,
+                            compress=compress,
+                            thread=thread,
+                            directional=directional,
+                            split_num=tmp_alignment_file_count)
 
-    alignment(work_dir=work_dir, index_prefix=index_prefix, output_format="gaf", thread=thread, directional=directional, compress=compress)
+    alignment(work_dir=work_dir,
+              index_prefix=index_prefix,
+              output_format="gaf",
+              thread=thread,
+              directional=directional,
+              compress=compress,
+              vg_path=vg_path)
+
     alignment_merge_main(work_dir, worker_num=thread)
 
     # Just to wait a bit for alignment_merge_main to finish and garbage collection

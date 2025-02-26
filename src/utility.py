@@ -12,6 +12,13 @@ import subprocess
 import multiprocessing
 
 
+atcg_complement_dict = {
+    "A": "T",
+    "T": "A",
+    "C": "G",
+    "G": "C",
+    "N": "N"
+}
 
 
 def sequence_reverse_complement(seq):
@@ -204,14 +211,14 @@ class SystemExecute(object):
         else:
             if not os.path.exists(os.path.dirname(stdout)):
                 os.makedirs(os.path.dirname(stdout))
-            stdout = open(stdout, "w")
+            stdout = open(stdout, "a")
 
         if stderr is None:
             stderr = subprocess.PIPE
         else:
             if not os.path.exists(os.path.dirname(stderr)):
                 os.makedirs(os.path.dirname(stderr))
-            stderr = open(stderr, "w")
+            stderr = open(stderr, "a")
 
         sp = subprocess.Popen(cmd, shell=True, stdout=stdout, stderr=stderr)
         self._pool.append(sp)
