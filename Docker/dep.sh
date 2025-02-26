@@ -12,6 +12,7 @@ tar -xvzf FastUniq-1.1.tar.gz -C ./
 cd ./FastUniq/source/
 make
 cp fastuniq /bin/
+mv GraphAligner /bin/
 
 
 cd /bin
