@@ -344,6 +344,9 @@ class GraphicalFragmentAssemblyMemorySegmentOptimized(GraphicalFragmentAssemblyA
             res[sID] = self.get_sequence_by_segment_ID(sID)
         return res
 
+    def get_sequence_length_by_segment_ID(self, segment_ID):
+        return len(self.get_sequence_by_segment_ID(segment_ID))
+
 
 # Store segment length in memory
 class GraphicalFragmentAssemblySegmentLengthMemory(object):

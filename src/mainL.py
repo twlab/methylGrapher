@@ -5,7 +5,7 @@ import os
 import re
 import sys
 import argparse
-
+import time
 
 import longread
 
@@ -31,6 +31,8 @@ if __name__ == "__main__":
     parser_main.add_argument('-t', help='number of threads', default=1, type=int)
     parser_main.add_argument('-debug', help='debug mode')
     parser_main.add_argument('-wd', help='working directory', default="./")
+    parser_main.add_argument('-discard_cg_mismatch', help='discard methylation information if read aligns to non CG sites')
+    parser_main.add_argument('-verbose', help='verbosity')
 
 
     # 1 prepare fasta
@@ -54,6 +56,8 @@ if __name__ == "__main__":
     parser_extraction.add_argument('-wd', help='working directory', default="./")
     parser_extraction.add_argument('-t', help='number of threads', default=1, type=int)
     parser_extraction.add_argument('-debug', help='debug mode')
+    parser_extraction.add_argument('-discard_cg_mismatch', help='discard methylation information if read aligns to non CG sites')
+    parser_extraction.add_argument('-verbose', help='verbosity')
 
 
     # TODO add function execution for subcommands
@@ -71,6 +75,8 @@ if __name__ == "__main__":
         debug = False
         basecall_fp = args.basecall
         gfa_fp = args.gfa
+        discard_mismatched_cg = True
+        verbose = False
 
         if args.wd:
             wd = args.wd
@@ -81,15 +87,18 @@ if __name__ == "__main__":
 
 
 
+
         # Log parameters
         print("Long read base call file path: ", basecall_fp, file=sys.stderr)
         print("Genome graph file path: ", gfa_fp, file=sys.stderr)
         print("Working directory: ", wd, file=sys.stderr)
         print("Number of threads: ", thread, file=sys.stderr)
         print("Debug mode: ", debug, file=sys.stderr)
+        print("Verbose: ", verbose, file=sys.stderr)
+        print("Discard mismatched CG: ", discard_mismatched_cg, file=sys.stderr)
 
         # Run main function
-        longread.main(basecall_fp, gfa_fp, wd)
+        longread.main(basecall_fp, gfa_fp, wd, threads=thread, debug=debug)
 
 
     elif args.command == 'prepare_fasta':
@@ -106,6 +115,22 @@ if __name__ == "__main__":
             thread = int(args.t)
         if args.debug:
             debug = True
+        if args.discard_cg_mismatch:
+            if args.discard_cg_mismatch.lower() in ['false', 'f', 'no', 'n']:
+                discard_mismatched_cg = False
+            elif args.discard_cg_mismatch.lower() in ['true', 't', 'yes', 'y']:
+                discard_mismatched_cg = True
+            else:
+                print('Invalid value for discard_cg_mismatch. Please use true or false', file=sys.stderr)
+                sys.exit(1)
+        if args.verbose:
+            if args.verbose.lower() in ['false', 'f', 'no', 'n']:
+                verbose = False
+            elif args.verbose.lower() in ['true', 't', 'yes', 'y']:
+                verbose = True
+            else:
+                print('Invalid value for verbose. Please use true or false', file=sys.stderr)
+                sys.exit(1)
 
         # Log parameters
         print("Long read base call file path: ", basecall_fp, file=sys.stderr)
@@ -140,6 +165,9 @@ if __name__ == "__main__":
         print("Number of threads: ", thread, file=sys.stderr)
         print("Debug mode: ", debug, file=sys.stderr)
 
+        # Run align function
+        longread.align(gfa_fp, wd, threads=thread, debug=debug)
+
 
 
     elif args.command == 'extraction':
@@ -147,6 +175,8 @@ if __name__ == "__main__":
         thread = 1
         debug = False
         gfa_fp = args.gfa
+        discard_mismatched_cg = True
+        verbose = False
 
         if args.wd:
             wd = args.wd
@@ -154,12 +184,34 @@ if __name__ == "__main__":
             thread = int(args.t)
         if args.debug:
             debug = True
+        if args.discard_cg_mismatch:
+            if args.discard_cg_mismatch.lower() in ['false', 'f', 'no', 'n']:
+                discard_mismatched_cg = False
+            elif args.discard_cg_mismatch.lower() in ['true', 't', 'yes', 'y']:
+                discard_mismatched_cg = True
+            else:
+                print('Invalid value for discard_cg_mismatch. Please use true or false', file=sys.stderr)
+                sys.exit(1)
+        if args.verbose:
+            if args.verbose.lower() in ['false', 'f', 'no', 'n']:
+                verbose = False
+            elif args.verbose.lower() in ['true', 't', 'yes', 'y']:
+                verbose = True
+            else:
+                print('Invalid value for verbose. Please use true or false', file=sys.stderr)
+                sys.exit(1)
+
 
         # Log parameters
         print("Genome graph file path: ", gfa_fp, file=sys.stderr)
         print("Working directory: ", wd, file=sys.stderr)
         print("Number of threads: ", thread, file=sys.stderr)
         print("Debug mode: ", debug, file=sys.stderr)
+        print("Verbose: ", verbose, file=sys.stderr)
+        print("Discard mismatched CG: ", discard_mismatched_cg, file=sys.stderr)
+
+
+        longread.extract_methylation(gfa_fp, wd, threads=1, debug=False, discard_cg_mismatch=discard_mismatched_cg, verbose=verbose)
 
     else:
         print('No command provided')
