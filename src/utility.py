@@ -111,6 +111,15 @@ class Utility(object):
             res += new_nt
         return res
 
+    @staticmethod
+    def argument_boolean(arg):
+        if arg.lower() in ['true', 't', 'yes', 'y']:
+            return True
+        elif arg.lower() in ['false', 'f', 'no', 'n']:
+            return False
+        else:
+            raise Exception(f"Invalid boolean argument: {arg}")
+
 
 def gfa_converter(input_gfa, output_file_prefix, compress=True, thread=1):
     utils = Utility()
@@ -767,4 +776,5 @@ if __name__ == "__main__":
 
     help = HelpDocument()
     print(help.help_text())
+
 

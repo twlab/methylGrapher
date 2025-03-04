@@ -11,7 +11,7 @@ import utility
 
 
 
-
+print("y")
 utl = utility.Utility()
 
 read_name_and_cytosine_methylation_regex = re.compile(r"(.*)\+(\(.*\))\-(\(.*\))")
@@ -573,12 +573,15 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
                             if corresponding_segment_pos < path_segment_length[segID]:
                                 corresponding_segment_ID = segID
                                 if not direction:
+
+                                    xxx= corresponding_segment_pos
                                     corresponding_segment_pos = path_segment_length[segID] - corresponding_segment_pos - 1
 
                                 break
 
                             corresponding_segment_pos -= path_segment_length[segID]
 
+                        
                         next_seg = False
                         segID2, direction2 = path_list[si]
                         corresponding_segment_ID2 = segID2
@@ -624,14 +627,16 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
                         if discard_cg_mismatch:
                             not_cg = False
 
-                            b1 = gfa_seq_instance.get_sequence_by_segment_ID(segID)[corresponding_segment_pos]
-                            b2 = gfa_seq_instance.get_sequence_by_segment_ID(segID2)[corresponding_segment_pos2]
+                            b1 = gfa_seq_instance.get_sequence_by_segment_ID(segID)[corresponding_segment_pos].upper()
+                            b2 = gfa_seq_instance.get_sequence_by_segment_ID(segID2)[corresponding_segment_pos2].upper()
 
+                            
                             if not direction:
-                                b1 = utility.atcg_complement_dict.get(b1.upper(), "N")
+                                b1 = utility.atcg_complement_dict.get(b1, "N")
                             if not direction2:
-                                b2 = utility.atcg_complement_dict.get(b2.upper(), "N")
+                                b2 = utility.atcg_complement_dict.get(b2, "N")
 
+                            
                             if b1 != "C" or b2 != "G":
                                 not_cg = True
                                 continue
@@ -651,6 +656,19 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
 
 
                         # This is just to make sure the key is unique
+
+                        # just used for sorting
+
+                        try:
+                            corresponding_segment_ID = int(corresponding_segment_ID)
+                        except ValueError:
+                            pass
+
+                        try:
+                            corresponding_segment_ID2 = int(corresponding_segment_ID2)
+                        except ValueError:
+                            pass
+
                         k1 = (corresponding_segment_ID, corresponding_segment_pos)
                         k2 = (corresponding_segment_ID2, corresponding_segment_pos2)
 
@@ -702,7 +720,9 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
                 l = f"{segment_ID}\t{pos}\t{strand}\t{met}\t{unmet}\t{cov}\n"
                 output_fh.write(l)
         """
-        for k, v in methylation_result.items():
+
+        for k in sorted(methylation_result.keys()):
+            v = methylation_result[k]
             segment_ID, pos, segment_ID2, pos2 = k
             met, cov = v
             unmet = cov - met

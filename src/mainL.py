@@ -1,12 +1,13 @@
 
 
-
 import os
 import re
 import sys
-import argparse
 import time
+import argparse
 
+
+import utility
 import longread
 
 
@@ -18,6 +19,9 @@ import longread
 
 if __name__ == "__main__":
 
+    utl = utility.Utility()
+
+
     # Arugment parser
     parser = argparse.ArgumentParser(description='methylGrapher for long reads')
 
@@ -26,76 +30,84 @@ if __name__ == "__main__":
 
     # main
     parser_main = subparsers.add_parser('main', help='One step to run all')
-    parser_main.add_argument('-basecall', help='Long read base call BAM/SAM file', required=True)
-    parser_main.add_argument('-gfa', help='Genome graph file path in GFA format', required=True)
-    parser_main.add_argument('-t', help='number of threads', default=1, type=int)
-    parser_main.add_argument('-debug', help='debug mode')
-    parser_main.add_argument('-wd', help='working directory', default="./")
-    parser_main.add_argument('-discard_cg_mismatch', help='discard methylation information if read aligns to non CG sites')
-    parser_main.add_argument('-verbose', help='verbosity')
-
 
     # 1 prepare fasta
     parser_prepare_fasta = subparsers.add_parser('prepare_fasta', help='Prepare fasta file')
-    parser_prepare_fasta.add_argument('-basecall', help='Long read base call BAM/SAM file', required=True)
-    parser_prepare_fasta.add_argument('-wd', help='working directory', default="./")
-    parser_prepare_fasta.add_argument('-t', help='number of threads', default=1, type=int)
-    parser_prepare_fasta.add_argument('-debug', help='debug mode')
-
 
     # 2 align
     parser_align = subparsers.add_parser('align', help='Align long reads to genome graph')
-    parser_align.add_argument('-gfa', help='Genome graph file path in GFA format', required=True)
-    parser_align.add_argument('-wd', help='Long read fasta file', default="./")
-    parser_align.add_argument('-t', help='number of threads', default=1, type=int)
-    parser_align.add_argument('-debug', help='debug mode')
 
     # 3 methylation extraction
     parser_extraction = subparsers.add_parser('extraction', help='Extract methylation information')
-    parser_extraction.add_argument('-gfa', help='Genome graph file path in GFA format', required=True)
-    parser_extraction.add_argument('-wd', help='working directory', default="./")
-    parser_extraction.add_argument('-t', help='number of threads', default=1, type=int)
-    parser_extraction.add_argument('-debug', help='debug mode')
-    parser_extraction.add_argument('-discard_cg_mismatch', help='discard methylation information if read aligns to non CG sites')
-    parser_extraction.add_argument('-verbose', help='verbosity')
 
 
-    # TODO add function execution for subcommands
+    all_parser = [parser_main, parser_prepare_fasta, parser_align, parser_extraction]
+    for p in all_parser:
+        p.add_argument('-t', help='number of threads', default=1, type=int)
+        p.add_argument('-debug', help='debug mode')
+        p.add_argument('-wd', help='working directory', default="./")
+        p.add_argument('-verbose', help='verbosity')
+
+
+
+    for p in [parser_main, parser_prepare_fasta]:
+        p.add_argument('-basecall', help='Long read base call BAM/SAM file', required=True)
+
+    for p in [parser_main, parser_align]:
+        pass
+
+    for p in [parser_main, parser_extraction]:
+        p.add_argument('-discard_cg_mismatch', help='discard methylation information if read aligns to non CG sites')
+
+    for p in [parser_main, parser_align, parser_extraction]:
+        p.add_argument('-gfa', help='Genome graph file path in GFA format', required=True)
 
 
 
     args = parser.parse_args()
 
+
+    # Default parameters
+    wd = "./"
+    thread = 1
+    debug = False
+    discard_mismatched_cg = True
+    verbose = False
+
+    basecall_fp = None
+    gfa_fp = None
+
+
+
+    # Parse arguments
+    if "wd" in args and args.wd:
+        wd = args.wd
+    if "t" in args and args.t:
+        thread = int(args.t)
+    if "debug" in args and args.debug:
+        debug = True
+
+    if "basecall" in args and args.basecall:
+        basecall_fp = args.basecall
+
+    if "gfa" in args and args.gfa:
+        gfa_fp = args.gfa
+        if not os.path.exists(gfa_fp):
+            print("Genome graph file does not exist", file=sys.stderr)
+            sys.exit(1)
+
+    if "verbose" in args and args.verbose:
+        verbose = utl.argument_boolean(args.verbose)
+
+    if "discard_cg_mismatch" in args and args.discard_cg_mismatch:
+        discard_mismatched_cg = utl.argument_boolean(args.discard_cg_mismatch)
+
+    if debug:
+        verbose = True
+
+
     if args.command == 'main':
         print("Running methylGrapherL with main function", file=sys.stderr)
-
-
-        wd = "./"
-        thread = 1
-        debug = False
-        basecall_fp = args.basecall
-        gfa_fp = args.gfa
-        discard_mismatched_cg = True
-        verbose = False
-
-        if args.wd:
-            wd = args.wd
-        if args.t:
-            thread = int(args.t)
-        if args.debug:
-            debug = True
-
-
-        if args.discard_cg_mismatch:
-            if args.discard_cg_mismatch.lower() in ['false', 'f', 'no', 'n']:
-                discard_mismatched_cg = False
-            elif args.discard_cg_mismatch.lower() in ['true', 't', 'yes', 'y']:
-                discard_mismatched_cg = True
-            else:
-                print('Invalid value for discard_cg_mismatch. Please use true or false', file=sys.stderr)
-                sys.exit(1)
-
-
 
 
         # Log parameters
@@ -114,26 +126,6 @@ if __name__ == "__main__":
     elif args.command == 'prepare_fasta':
         print("Prepare fasta", file=sys.stderr)
 
-        wd = "./"
-        thread = 1
-        debug = False
-        basecall_fp = args.basecall
-
-        if args.wd:
-            wd = args.wd
-        if args.t:
-            thread = int(args.t)
-        if args.debug:
-            debug = True
-        if args.verbose:
-            if args.verbose.lower() in ['false', 'f', 'no', 'n']:
-                verbose = False
-            elif args.verbose.lower() in ['true', 't', 'yes', 'y']:
-                verbose = True
-            else:
-                print('Invalid value for verbose. Please use true or false', file=sys.stderr)
-                sys.exit(1)
-
         # Log parameters
         print("Long read base call file path: ", basecall_fp, file=sys.stderr)
         print("Working directory: ", wd, file=sys.stderr)
@@ -148,19 +140,6 @@ if __name__ == "__main__":
     elif args.command == 'align':
         print("Align")
 
-        wd = "./"
-        thread = 1
-        debug = False
-        gfa_fp = args.gfa
-
-        if args.wd:
-            wd = args.wd
-        if args.t:
-            thread = int(args.t)
-        if args.debug:
-            debug = True
-
-
         # Log parameters
         print("Genome graph file path: ", gfa_fp, file=sys.stderr)
         print("Working directory: ", wd, file=sys.stderr)
@@ -173,35 +152,6 @@ if __name__ == "__main__":
 
 
     elif args.command == 'extraction':
-        wd = "./"
-        thread = 1
-        debug = False
-        gfa_fp = args.gfa
-        discard_mismatched_cg = True
-        verbose = False
-
-        if args.wd:
-            wd = args.wd
-        if args.t:
-            thread = int(args.t)
-        if args.debug:
-            debug = True
-        if args.discard_cg_mismatch:
-            if args.discard_cg_mismatch.lower() in ['false', 'f', 'no', 'n']:
-                discard_mismatched_cg = False
-            elif args.discard_cg_mismatch.lower() in ['true', 't', 'yes', 'y']:
-                discard_mismatched_cg = True
-            else:
-                print('Invalid value for discard_cg_mismatch. Please use true or false', file=sys.stderr)
-                sys.exit(1)
-        if args.verbose:
-            if args.verbose.lower() in ['false', 'f', 'no', 'n']:
-                verbose = False
-            elif args.verbose.lower() in ['true', 't', 'yes', 'y']:
-                verbose = True
-            else:
-                print('Invalid value for verbose. Please use true or false', file=sys.stderr)
-                sys.exit(1)
 
 
         # Log parameters
@@ -217,5 +167,6 @@ if __name__ == "__main__":
 
     else:
         print('No command provided')
+
 
 
