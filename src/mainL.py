@@ -54,7 +54,9 @@ if __name__ == "__main__":
         p.add_argument('-basecall', help='Long read base call BAM/SAM file', required=True)
 
     for p in [parser_main, parser_align]:
-        pass
+        p.add_argument('-binary_path', help='Binary path for aligner', default="vg")
+        p.add_argument('-aligner', help='Aligner, either vg or GraphAligner')
+        p.add_argument('-additional_alignment_params', help='Additional alignment parameters')
 
     for p in [parser_main, parser_extraction]:
         p.add_argument('-discard_cg_mismatch', help='discard methylation information if read aligns to non CG sites')
@@ -81,6 +83,12 @@ if __name__ == "__main__":
     mapq_threshold = 10
 
 
+    aligner_binary_path = "vg"
+    aligner = "vg"
+    additional_alignment_params = ""
+
+
+
 
     # Parse arguments
     if "wd" in args and args.wd:
@@ -101,6 +109,18 @@ if __name__ == "__main__":
 
     if "verbose" in args and args.verbose:
         verbose = utl.argument_boolean(args.verbose)
+
+    if "aligner" in args and args.aligner:
+        aligner = args.aligner
+        if aligner not in ["vg", "GraphAligner"]:
+            print("Aligner must be either vg or GraphAligner", file=sys.stderr)
+            sys.exit(1)
+
+    if "binary_path" in args and args.binary_path:
+        aligner_binary_path = args.binary_path
+
+    if "additional_alignment_params" in args and args.additional_alignment_params:
+        additional_alignment_params = args.additional_alignment_params
 
     if "discard_cg_mismatch" in args and args.discard_cg_mismatch:
         discard_mismatched_cg = utl.argument_boolean(args.discard_cg_mismatch)
@@ -149,7 +169,7 @@ if __name__ == "__main__":
 
 
     elif args.command == 'align':
-        print("Align")
+        print("Align", file=sys.stderr)
 
         # Log parameters
         print("Genome graph file path: ", gfa_fp, file=sys.stderr)
@@ -158,12 +178,12 @@ if __name__ == "__main__":
         print("Debug mode: ", debug, file=sys.stderr)
 
         # Run align function
-        longread.align(gfa_fp, wd, threads=thread, debug=debug)
+        # binary_path=None, aligner="GraphAligner", additional_alignment_params=""
+        longread.align(gfa_fp, wd, threads=thread, debug=debug, binary_path=aligner_binary_path, aligner=aligner, additional_alignment_params=additional_alignment_params)
 
 
 
     elif args.command == 'extraction':
-
 
         # Log parameters
         print("Genome graph file path: ", gfa_fp, file=sys.stderr)
@@ -172,6 +192,7 @@ if __name__ == "__main__":
         print("Debug mode: ", debug, file=sys.stderr)
         print("Verbose: ", verbose, file=sys.stderr)
         print("Discard mismatched CG: ", discard_mismatched_cg, file=sys.stderr)
+        print("MAPQ threshold: ", mapq_threshold, file=sys.stderr)
 
 
         longread.extract_methylation(gfa_fp, wd, threads=1, debug=False, discard_cg_mismatch=discard_mismatched_cg, verbose=verbose, mapq_threshold=mapq_threshold)

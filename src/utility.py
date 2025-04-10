@@ -734,7 +734,7 @@ Main:
     -index_prefix <prefix> 
     # Output options
     -work_dir <work_directory> 
-    -compress <Y/N> (default: Y)
+    -compress <Y/N> (default: N)
     # Computing options
     -t <number_of_thread(s)> (default: 1)
     -directional <Y/N> (default: Y) 
@@ -749,6 +749,7 @@ Align:
     -index_prefix <prefix> 
     -work_dir <work_directory> 
     -directional <Y/N> (default: Y)
+    -compress <Y/N> (default: N)
 
 MethylCall:
     Methylation call from vg giraffe alignment result.
@@ -765,6 +766,12 @@ MethylCall:
 ConversionRate:
     Estimate conversion rate from methylation extraction. MethylCall must be executed before this step.
     methylGrapher ConversionRate 
+    -index_prefix <prefix> 
+    -work_dir <work_directory>
+
+MergeCpG:
+    Merge cytosine methylation call (graph.methyl) into CpG methylation call. During graph indexing, all CpG locations are identified and stored in a separate TSV file. The graph CpG locations are stored under {index_prefix}cpg.tsv, with CpG id and both cytosine location on graph coordinate. MergeCpG function will merge the cytosine methylation call (graph.methyl) into CpG methylation call using graph CpG id.
+    methylGrapher MergeCpG 
     -index_prefix <prefix> 
     -work_dir <work_directory>
 

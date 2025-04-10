@@ -764,14 +764,6 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
             # break
 
     if verbose:
-        """
-        counter_pass = 0
-        counter_issue_no_methylation = 0
-        counter_issue = 0
-        counter_skip_secondary = 0
-        counter_skip_low_mapq = 0
-        counter_total = 0
-        """
 
         log_message = f"""Processed {counter_total} alignment
 {counter_skip_low_mapq} alignments skipped due to low mapq ({counter_skip_low_mapq / counter_total * 100:.1f}%)
@@ -866,24 +858,38 @@ def prepare_fasta(basecall, wd, threads=1, debug=False):
     return None
 
 
-def align(gfa, wd, threads=1, debug=False):
+def align(graph_fp, wd, threads=1, debug=False, binary_path=None, aligner="GraphAligner", additional_alignment_params=""):
     """
     Align long reads to genome graph
     :param wd: working directory
-    :param gfa: genome graph file path in GFA format
+    :param graph_fp: For GraphAligner, genome graph file path in GFA format. For VG, genome graph file path in GBZ format and indexed at the same location.
     """
 
-    # TODO use non-default version of GraphAligner
-    cmd = f"GraphAligner -t {threads} --cigar-match-mismatch -g {gfa} -f {generate_fasta_fp(wd)} -a {generate_fp_within_wd(wd, 'align.gaf')} -x vg"
-
-    # TODO vg mode
-    cmd = f""
+    assert aligner in ["GraphAligner", "vg"], f"Unknown aligner {aligner}"
+    if binary_path is None:
+        binary_path = aligner
 
     align_exe = utility.SystemExecute()
 
-    align_exe.execute(cmd, stdout=generate_fp_within_wd(wd, 'align.log'), stderr=generate_fp_within_wd(wd, 'align.err'))
+    if aligner == "GraphAligner":
+        for f in [generate_fp_within_wd(wd, 'align.log'), generate_fp_within_wd(wd, 'align.err')]:
+            if os.path.exists(f):
+                os.remove(f)
+
+        cmd = f"{binary_path} -t {threads} --cigar-match-mismatch {additional_alignment_params} -g {graph_fp} -f {generate_fasta_fp(wd)} -a {generate_fp_within_wd(wd, 'align.gaf')} -x vg"
+        align_exe.execute(cmd, stdout=generate_fp_within_wd(wd, 'align.log'), stderr=generate_fp_within_wd(wd, 'align.err'))
+
+    elif aligner == "vg":
+        for f in [generate_fp_within_wd(wd, 'align.gaf'), generate_fp_within_wd(wd, 'align.err')]:
+            if os.path.exists(f):
+                os.remove(f)
+
+        cmd = f"{binary_path} giraffe -b hifi -Z {graph_fp} -f {generate_fasta_fp(wd)} -o GAF -t {threads} --named-coordinates {additional_alignment_params}"
+        align_exe.execute(cmd, stdout=generate_fp_within_wd(wd, 'align.gaf'), stderr=generate_fp_within_wd(wd, 'align.err'))
+
+
+    print(cmd, file=sys.stderr)
     align_exe.wait()
-    print(cmd)
 
     return None
 
