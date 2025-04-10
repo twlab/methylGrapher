@@ -628,14 +628,21 @@ def estimate_conversion_rate_print(index_prefix, work_dir):
     conversion_rate = estimate_conversion_rate(index_prefix, work_dir)
 
     overall = conversion_rate["overall"] * 100
-    cg_cr = conversion_rate["CG"] * 100
-    chg_cr = conversion_rate["CHG"] * 100
-    chh_cr = conversion_rate["CHH"] * 100
+    cg_cr  = "Not available"
+    chg_cr = "Not available"
+    chh_cr = "Not available"
 
-    res = (f"Overall conversion rate: {overall:.2f}%\n"
-           f"CG context conversion rate: {cg_cr:.2f}%\n"
-           f"CHG context conversion rate: {chg_cr:.2f}%\n"
-           f"CHH context conversion rate: {chh_cr:.2f}%\n")
+    if "CG" in conversion_rate:
+        cg_cr = f"{conversion_rate['CG'] * 100:.2f}%"
+    if "CHG" in conversion_rate:
+        chg_cr = f"{conversion_rate['CHG'] * 100:.2f}%"
+    if "CHH" in conversion_rate:
+        chh_cr = f"{conversion_rate['CHH'] * 100:.2f}%"
+
+    res = (f"Overall conversion rate: {overall}\n"
+           f"CG context conversion rate: {cg_cr}\n"
+           f"CHG context conversion rate: {chg_cr}\n"
+           f"CHH context conversion rate: {chh_cr}\n")
 
     return res
 

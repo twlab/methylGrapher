@@ -11,7 +11,7 @@ import utility
 
 
 
-print("y")
+
 utl = utility.Utility()
 
 read_name_and_cytosine_methylation_regex = re.compile(r"(.*)\+(\(.*\))\-(\(.*\))")
@@ -50,6 +50,42 @@ def debug_get_fasta_by_read_name(read_name, fasta_fp):
                 if l[1:].strip() == read_name:
                     return f.readline().strip()
     return None
+
+
+def cs_tag_to_cigar(alignment_tag):
+    tag_parsed = []
+
+    element = ""
+    for s in alignment_tag:
+        if s in "+-:*":
+            if len(element) == 0 and len(tag_parsed) == 0:
+                element = s
+                continue
+            tag_parsed.append(element)
+            element = s
+            continue
+        element += s
+
+    tag_parsed.append(element)
+    tag_reconstructed = "".join(tag_parsed)
+    assert tag_reconstructed == alignment_tag
+
+    res = []
+    for t in tag_parsed:
+        if t[0] == "+":
+            res.append((len(t[1:]), "I"))
+        elif t[0] == "-":
+            res.append((len(t[1:]), "D"))
+        elif t[0] == ":":
+            res.append((int(t[1:]), "M"))
+        elif t[0] == "*":
+            # Mismatch
+            res.append((1, "M"))
+        else:
+            raise RuntimeError(f"Unknown cigar type {t}")
+
+
+    return res
 
 def sam_bam_line_reader(file_path):
     lower_fp = file_path.lower()
@@ -313,7 +349,7 @@ def generate_fasta_fp(wd):
     return generate_fp_within_wd(wd, "input.fasta")
 
 
-def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discard_cg_mismatch=True, verbose=False):
+def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discard_cg_mismatch=True, verbose=False, mapq_threshold=10):
     """
     Extract methylation information
     :param wd: working directory
@@ -325,6 +361,7 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
     counter_issue_no_methylation = 0
     counter_issue = 0
     counter_skip_secondary = 0
+    counter_skip_low_mapq = 0
     counter_total = 0
 
     methylation_result = {}
@@ -342,7 +379,7 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
     dur = time.time() - time_start
 
     if verbose:
-        print(f"Graph loaded in {dur:.1f} seconds")
+        print(f"Graph loaded in {dur:.1f} seconds", file=sys.stderr)
 
     time_start = time.time()
 
@@ -378,15 +415,19 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
                     # print(counter_total, counter_pass, counter_issue_no_methylation, counter_issue, duration)
                     # print(f"Calculation duration: {calc_dur:.1f}s, {calc_dur / counter_total*1000:.1f}ms per read")
                     # print(f"Calculation duration: {calc_dur_mid:.1f}s, {calc_dur_mid / counter_total*1000:.1f}ms per read (mid)")
-                    print(log_message)
+                    print(log_message, file=sys.stderr)
                     # print(f"Skip ratio: {sum(skip_count.values()) / len(skip_count) * 100:.1f}%")
-                    print()
+                    print(file=sys.stderr)
 
 
 
 
             # Parse basic information from GAF
             read_name = l[0]
+
+            if "*" in [l[2], l[3], l[6], l[7], l[8]]:
+                # not aligned
+                continue
 
             query_len = int(l[1])
             query_start = int(l[2])
@@ -408,13 +449,17 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
             tag_list = l[12:]
             tags = {}
             for tag_str in tag_list:
-                tname, tdt, tv = tag_str.split(":")
+                tname, tdt, tv = tag_str.split(":", 2)
                 if tdt == "i":
                     tv = int(tv)
                 elif tdt == "f":
                     tv = float(tv)
                 tags[tname] = tv
                 # print(tname, tv)
+
+            if mapq < mapq_threshold:
+                counter_skip_low_mapq += 1
+                continue
 
 
 
@@ -462,9 +507,31 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
 
             # Example: 42M1I5M1D23M1I1M1I1M1I13M1D41M1D35M1D4M1D
             cigar = []
-            cigar_str = tags["cg"]
-            for c in cigar_regex.findall(cigar_str):
-                cigar.append((int(c[:-1]), c[-1]))
+
+            if "cg" in tags:
+                cigar_str = tags["cg"]
+                for c in cigar_regex.findall(cigar_str):
+                    cigar.append((int(c[:-1]), c[-1]))
+
+                # Just to make sure the cigar interpretation is correct
+                cigar_freq = {}
+                for c in cigar:
+                    if c[1] not in cigar_freq:
+                        cigar_freq[c[1]] = 0
+                    cigar_freq[c[1]] += c[0]
+                assert path_end - path_start == cigar_freq["M"] + cigar_freq.get("D", 0)
+                assert query_end - query_start == cigar_freq["M"] + cigar_freq.get("I", 0)
+
+                reconstructed_cigar = ""
+                for c in cigar:
+                    reconstructed_cigar += str(c[0]) + c[1]
+                assert reconstructed_cigar == cigar_str
+
+            elif "cs" in tags:
+                cs_str = tags["cs"]
+                cigar = cs_tag_to_cigar(cs_str)
+            else:
+                raise RuntimeError
 
             alignment_block_type = []
             block_start = 0
@@ -489,19 +556,7 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
             unmethylated = set(map(int, list(filter(lambda x: x != "", unmethylated_cytosines))))
 
 
-            # Just to make sure the cigar interpretation is correct
-            cigar_freq = {}
-            for c in cigar:
-                if c[1] not in cigar_freq:
-                    cigar_freq[c[1]] = 0
-                cigar_freq[c[1]] += c[0]
-            assert path_end - path_start == cigar_freq["M"] + cigar_freq.get("D", 0)
-            assert query_end - query_start == cigar_freq["M"] + cigar_freq.get("I", 0)
 
-            reconstructed_cigar = ""
-            for c in cigar:
-                reconstructed_cigar += str(c[0]) + c[1]
-            assert reconstructed_cigar == cigar_str
 
 
             # if ">" in path_str:
@@ -708,6 +763,26 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
             calc_dur += time.time() - calc_start_ts
             # break
 
+    if verbose:
+        """
+        counter_pass = 0
+        counter_issue_no_methylation = 0
+        counter_issue = 0
+        counter_skip_secondary = 0
+        counter_skip_low_mapq = 0
+        counter_total = 0
+        """
+
+        log_message = f"""Processed {counter_total} alignment
+{counter_skip_low_mapq} alignments skipped due to low mapq ({counter_skip_low_mapq / counter_total * 100:.1f}%)
+{counter_skip_secondary} alignments skipped due to secondary alignment ({counter_skip_secondary / counter_total * 100:.1f}%)
+{counter_issue_no_methylation} alignments skipped due to no methylation data ({counter_issue_no_methylation / counter_total * 100:.1f}%)
+{counter_pass} alignments passed ({counter_pass / counter_total * 100:.1f}%)
+"""
+
+        print(log_message, file=sys.stderr)
+
+
 
     output_fp = generate_fp_within_wd(wd, "methylation.tsv")
     with open(output_fp, 'w') as output_fh:
@@ -800,6 +875,10 @@ def align(gfa, wd, threads=1, debug=False):
 
     # TODO use non-default version of GraphAligner
     cmd = f"GraphAligner -t {threads} --cigar-match-mismatch -g {gfa} -f {generate_fasta_fp(wd)} -a {generate_fp_within_wd(wd, 'align.gaf')} -x vg"
+
+    # TODO vg mode
+    cmd = f""
+
     align_exe = utility.SystemExecute()
 
     align_exe.execute(cmd, stdout=generate_fp_within_wd(wd, 'align.log'), stderr=generate_fp_within_wd(wd, 'align.err'))
@@ -808,7 +887,7 @@ def align(gfa, wd, threads=1, debug=False):
 
     return None
 
-def extract_methylation(gfa_fp, wd, threads=1, debug=False, discard_cg_mismatch=True, verbose=True):
+def extract_methylation(gfa_fp, wd, threads=1, debug=False, discard_cg_mismatch=True, verbose=True, mapq_threshold=10):
     """
     Extract methylation information
     :param wd: working directory
@@ -816,12 +895,12 @@ def extract_methylation(gfa_fp, wd, threads=1, debug=False, discard_cg_mismatch=
     :return: methylation information
     """
 
-    extract_methylation_single_thread(gfa_fp, wd, debug=debug, discard_cg_mismatch=discard_cg_mismatch, verbose=verbose)
+    extract_methylation_single_thread(gfa_fp, wd, debug=debug, discard_cg_mismatch=discard_cg_mismatch, verbose=verbose, mapq_threshold=mapq_threshold)
 
     return None
 
 
-def main(basecall, gfa_fp, wd, threads=1, debug=False, discard_cg_mismatch=True, verbose=True):
+def main(basecall, gfa_fp, wd, threads=1, debug=False, discard_cg_mismatch=True, verbose=True, mapq_threshold=10):
     """
     One step to run all
     :param basecall: long read base call BAM/SAM file
@@ -836,7 +915,7 @@ def main(basecall, gfa_fp, wd, threads=1, debug=False, discard_cg_mismatch=True,
 
     prepare_fasta(basecall, wd, threads=threads, debug=debug)
     align(gfa_fp, wd, threads=threads, debug=debug)
-    extract_methylation(gfa_fp, wd, threads=threads, debug=debug, discard_cg_mismatch=True, verbose=True)
+    extract_methylation(gfa_fp, wd, threads=threads, debug=debug, discard_cg_mismatch=discard_cg_mismatch, verbose=verbose, mapq_threshold=mapq_threshold)
 
     return None
 

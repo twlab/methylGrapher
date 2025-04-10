@@ -58,6 +58,7 @@ if __name__ == "__main__":
 
     for p in [parser_main, parser_extraction]:
         p.add_argument('-discard_cg_mismatch', help='discard methylation information if read aligns to non CG sites')
+        p.add_argument('-mapq_threshold', help='discard read alignment if mapq < threshold', default=10, type=int)
 
     for p in [parser_main, parser_align, parser_extraction]:
         p.add_argument('-gfa', help='Genome graph file path in GFA format', required=True)
@@ -76,6 +77,8 @@ if __name__ == "__main__":
 
     basecall_fp = None
     gfa_fp = None
+
+    mapq_threshold = 10
 
 
 
@@ -102,6 +105,14 @@ if __name__ == "__main__":
     if "discard_cg_mismatch" in args and args.discard_cg_mismatch:
         discard_mismatched_cg = utl.argument_boolean(args.discard_cg_mismatch)
 
+    if "mapq_threshold" in args and args.mapq_threshold:
+        mapq_threshold = int(args.mapq_threshold)
+        if mapq_threshold < 0:
+            print("Mapq threshold must be greater than 0", file=sys.stderr)
+            sys.exit(1)
+
+
+
     if debug:
         verbose = True
 
@@ -120,7 +131,7 @@ if __name__ == "__main__":
         print("Discard mismatched CG: ", discard_mismatched_cg, file=sys.stderr)
 
         # Run main function
-        longread.main(basecall_fp, gfa_fp, wd, threads=thread, debug=debug)
+        longread.main(basecall_fp, gfa_fp, wd, threads=thread, debug=debug, mapq_threshold=mapq_threshold, discard_cg_mismatch=discard_mismatched_cg, verbose=verbose)
 
 
     elif args.command == 'prepare_fasta':
@@ -163,7 +174,7 @@ if __name__ == "__main__":
         print("Discard mismatched CG: ", discard_mismatched_cg, file=sys.stderr)
 
 
-        longread.extract_methylation(gfa_fp, wd, threads=1, debug=False, discard_cg_mismatch=discard_mismatched_cg, verbose=verbose)
+        longread.extract_methylation(gfa_fp, wd, threads=1, debug=False, discard_cg_mismatch=discard_mismatched_cg, verbose=verbose, mapq_threshold=mapq_threshold)
 
     else:
         print('No command provided')
