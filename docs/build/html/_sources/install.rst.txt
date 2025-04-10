@@ -35,6 +35,7 @@ Install via CONDA
 
     conda create -n methylGrapher python=3.12
     conda activate methylGrapher
+    # Not recommended, but if you want to use conda to install vg, you can do so.
     conda install bioconda::vg
     pip install methylGrapher
 

@@ -11,6 +11,10 @@ Description
 ~~~~~~~~~~~~~~~~~~~~~~
 This process involves transforming the genome graph from GFA format into two fully converted genome graphs: one depleted of C bases and another depleted of G bases. Additionally, if desired, you may include a spike-in genome in FASTA format to estimate the conversion rate in a single step further.
 
+.. warning::
+    Please use the same VG version for both genome indexing and alignment. Use different versions may cause VG to crash.
+
+
 Example Usage
 ~~~~~~~~~~~~~~~~~~~~~~
 .. code-block:: shell
@@ -243,6 +247,43 @@ Required arguments
 |
 |
 |
+
+
+
+MergeCpG
+--------------------
+
+Description
+~~~~~~~~~~~~~~~~~~~~~~
+
+Merge cytosine methylation call (graph.methyl) into CpG methylation call. During graph indexing, all CpG locations are identified and stored in a separate TSV file.
+The graph CpG locations are stored under {index_prefix}cpg.tsv, with CpG id and both cytosine location on graph coordinate.
+MergeCpG function will merge the cytosine methylation call (graph.methyl) into CpG methylation call using graph CpG id.
+
+Example Usage
+~~~~~~~~~~~~~~~~~~~~~~
+.. code-block:: shell
+
+    methylGrapher MergeCpG -work_dir TheWorkingDir -index_prefix PrepareGenomeOutputPrefix
+
+
+Required arguments
+~~~~~~~~~~~~~~~~~~~~~~
+-work_dir <working_directory>
+
+-index_prefix <index_prefix>
+
+
+
+
+
+|
+|
+|
+|
+|
+
+
 
 
 

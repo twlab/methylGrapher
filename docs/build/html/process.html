@@ -80,6 +80,12 @@
 <li class="toctree-l3"><a class="reference internal" href="#id15">Required arguments</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#mergecpg">MergeCpG</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id16">Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id17">Example Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id18">Required arguments</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="filetype.html">File Types</a></li>
@@ -118,6 +124,10 @@
 <section id="description">
 <h3>Description<a class="headerlink" href="#description" title="Link to this heading"></a></h3>
 <p>This process involves transforming the genome graph from GFA format into two fully converted genome graphs: one depleted of C bases and another depleted of G bases. Additionally, if desired, you may include a spike-in genome in FASTA format to estimate the conversion rate in a single step further.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Please use the same VG version for both genome indexing and alignment. Use different versions may cause VG to crash.</p>
+</div>
 </section>
 <section id="example-usage">
 <h3>Example Usage<a class="headerlink" href="#example-usage" title="Link to this heading"></a></h3>
@@ -273,6 +283,33 @@
 </section>
 <section id="id15">
 <h3>Required arguments<a class="headerlink" href="#id15" title="Link to this heading"></a></h3>
+<p>-work_dir &lt;working_directory&gt;</p>
+<p>-index_prefix &lt;index_prefix&gt;</p>
+<div class="line-block">
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+</div>
+</section>
+</section>
+<section id="mergecpg">
+<h2>MergeCpG<a class="headerlink" href="#mergecpg" title="Link to this heading"></a></h2>
+<section id="id16">
+<h3>Description<a class="headerlink" href="#id16" title="Link to this heading"></a></h3>
+<p>Merge cytosine methylation call (graph.methyl) into CpG methylation call. During graph indexing, all CpG locations are identified and stored in a separate TSV file.
+The graph CpG locations are stored under {index_prefix}cpg.tsv, with CpG id and both cytosine location on graph coordinate.
+MergeCpG function will merge the cytosine methylation call (graph.methyl) into CpG methylation call using graph CpG id.</p>
+</section>
+<section id="id17">
+<h3>Example Usage<a class="headerlink" href="#id17" title="Link to this heading"></a></h3>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>methylGrapher<span class="w"> </span>MergeCpG<span class="w"> </span>-work_dir<span class="w"> </span>TheWorkingDir<span class="w"> </span>-index_prefix<span class="w"> </span>PrepareGenomeOutputPrefix
+</pre></div>
+</div>
+</section>
+<section id="id18">
+<h3>Required arguments<a class="headerlink" href="#id18" title="Link to this heading"></a></h3>
 <p>-work_dir &lt;working_directory&gt;</p>
 <p>-index_prefix &lt;index_prefix&gt;</p>
 <div class="line-block">
