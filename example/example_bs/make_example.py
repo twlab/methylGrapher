@@ -111,7 +111,13 @@ for i in range(1000):
 # 10001 - 10003
 for i in range(1000):
 
-    read1 = reverse_complement(genome_graph_segments["10003"])
+    s10003 = genome_graph_segments["10003"]
+    s10003m = s10003
+    # Artificially add C-T in the middle of the read
+    if random.random() < 0.5:
+        s10003m = s10003[:4] + "T" + s10003[5:]
+
+    read1 = reverse_complement(s10003m)
     read2 = genome_graph_segments["10001"]
 
     read1 = list(read1)
@@ -132,6 +138,38 @@ for i in range(1000):
     reads1[rn + "3f1p"] = "".join(read1)
     reads2[rn + "3f1p"] = "".join(read2)
 
+
+# print(s10003)
+# print(s10003m)
+
+
+
+# 10001 - 10006 - 10004
+for i in range(1000):
+
+    read1 = genome_graph_segments["10001"]
+    read2 = genome_graph_segments["10002"]
+    read2 = reverse_complement(read2)
+
+    read1 = list(read1)
+    read2 = list(read2)
+
+    for j in range(len(read1)):
+        # 10001 0% methylation
+        if read1[j] == "C":
+            read1[j] = "T"
+
+    for j in range(len(read2)):
+        # 10002 0% methylation
+        if read2[j] == "G" and random.random() < 0.5:
+            read2[j] = "A"
+
+
+    rn = random_h(30)
+    reads1[rn + "1pG2r"] = "".join(read1) + "A"
+    reads2[rn + "1pG2r"] = "".join(read2)
+
+# print("AAAA")
 
 
 # Simulate lambda phage genome
