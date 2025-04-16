@@ -21,6 +21,18 @@ atcg_complement_dict = {
 }
 
 
+phred_lookup_int = {chr(i): i - 33 for i in range(33, 255)}
+def phred_to_int(qual_char):
+    assert qual_char in phred_lookup_int
+    return phred_lookup_int[qual_char]
+
+
+phred_lookup_prob = {char: 10 ** (-(phred_score / 10.0)) for char, phred_score in phred_lookup_int.items()}
+def phred_to_prob(qual_char):
+    assert qual_char in phred_lookup_prob
+    return phred_lookup_prob[qual_char]
+
+
 def sequence_reverse_complement(seq):
     return seq.translate(str.maketrans("ACGTN", "TGCAN"))[::-1]
 
@@ -423,8 +435,17 @@ def get_all_cpg_from_graph(gfa_fp, out_fp):
     cpg_list_file_handle.close()
 
 
-def merge_graph_cytosines(cpg_fp, cytosine_fp, out_fp):
+def merge_graph_cytosines(cpg_fp, cytosine_fp, genotype_cytosine_fp, out_fp, full_position=False):
     cytosine_data = graph_methyl_cytosine_reader(cytosine_fp)
+
+    false_positive_cytosines = set()
+    if os.path.exists(genotype_cytosine_fp):
+        with open(genotype_cytosine_fp) as fh:
+            for l in fh:
+                l = l.strip().split("\t")
+                segID, pos, *others = l
+                false_positive_cytosines.add((segID, pos))
+
 
     with open(out_fp, "w") as fh_out:
         for l in open(cpg_fp):
@@ -432,13 +453,23 @@ def merge_graph_cytosines(cpg_fp, cytosine_fp, out_fp):
             met = 0
             cov = 0
 
-            if segID1 in cytosine_data and pos1 in cytosine_data[segID1]:
-                m, c = cytosine_data[segID1][pos1]
-                met += m
-                cov += c
+            cytosines = [(segID1, pos1), (segID2, pos2)]
 
-            if segID2 in cytosine_data and pos2 in cytosine_data[segID2]:
-                m, c = cytosine_data[segID2][pos2]
+            skip = False
+            for cytosine in cytosines:
+                if cytosine in false_positive_cytosines:
+                    print("SKIP")
+                    skip = True
+            if skip:
+                continue
+
+            for segID, pos in cytosines:
+                if segID not in cytosine_data:
+                    continue
+                if pos not in cytosine_data[segID]:
+                    continue
+
+                m, c = cytosine_data[segID][pos]
                 met += m
                 cov += c
 
@@ -446,6 +477,8 @@ def merge_graph_cytosines(cpg_fp, cytosine_fp, out_fp):
                 continue
 
             line = [cpg_ind, met, cov]
+            if full_position:
+                line = [cpg_ind, segID1, pos1, segID2, pos2, met, cov]
             line_str = "\t".join(map(str, line)) + "\n"
             fh_out.write(line_str)
 
@@ -697,7 +730,7 @@ class HelpDocument(object):
 """.strip()
 
     def version(self):
-        return "0.1.3"
+        return "0.2.0"
 
     def help_text_raw(self):
         return """
@@ -709,9 +742,12 @@ Commands:
     Align
     MethylCall
     ConversionRate
+    MergeCpG
 
 Help:
     methylGrapher help
+    Or
+    https://twlab.github.io/methylGrapher/build/html/
 
 PrepareGenome:
     It adds lambda phage genome to your genome graph, converts a GFA file into fully G->A and C->T converted GFA file, and indexes it for vg giraffe alignment.

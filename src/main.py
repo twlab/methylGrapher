@@ -4,7 +4,7 @@ __author__ = "Wenjin Zhang"
 __copyright__ = "Copyright 2023-2025, Ting Wang Lab"
 __credits__ = ["Juan Macias"]
 __license__ = "MIT"
-__version__ = "0.1.3"
+__version__ = "0.2.0"
 __maintainer__ = "Wenjin Zhang"
 __email__ = "wenjin@wustl.edu"
 
@@ -14,6 +14,7 @@ import os
 import sys
 
 import gfa
+import json
 import mcall
 import utility
 import alignments
@@ -120,8 +121,22 @@ if __name__ == "__main__":
             g.write_converted(gfa_g2a, "G", "A", SNV_trim=graph_trim_flag)
 
             del g
+
         else:
             utility.gfa_converter(original_gfa_with_lambda, prefix+".wl", compress=False)
+
+
+        g = gfa.GraphicalFragmentAssemblyMemory()
+        g.parse(original_gfa_with_lambda, keep_link=True)
+
+        replacement_ndoes = {}
+        replacement_ndoes["CT"] = g.get_replacement_SNV("C", "T")
+        replacement_ndoes["GA"] = g.get_replacement_SNV("G", "A")
+
+        with open(prefix + ".wl.node.replacement.json", "w") as nr_json_fh:
+            json.dump(replacement_ndoes, nr_json_fh, indent=4)
+
+
 
         for gfa_file_path in [gfa_c2t, gfa_g2a]:
             index_prefix = gfa_file_path[:-4]
@@ -176,11 +191,14 @@ if __name__ == "__main__":
     # Call methylation
     if command == "methylcall":
         work_dir = kvargs.get("work_dir", "./")
-        gfa_file = kvargs["index_prefix"] + ".wl.gfa"
+        # gfa_file = kvargs["index_prefix"] + ".wl.gfa"
 
         minimum_identity = 20
         minimum_mapq = 0
         discard_multimapped = True
+        cg_only = True
+        genotyping_cytosine = False
+
 
         if "minimum_identity" in kvargs:
             minimum_identity = int(kvargs["minimum_identity"])
@@ -188,6 +206,10 @@ if __name__ == "__main__":
             minimum_mapq = int(kvargs["minimum_mapq"])
         if "discard_multimapped" in kvargs:
             discard_multimapped = kvargs["discard_multimapped"].lower() in "yestrue"
+        if "cg_only" in kvargs:
+            cg_only = kvargs["cg_only"].lower() in "yestrue"
+        if "genotyping_cytosine" in kvargs:
+            genotyping_cytosine = kvargs["genotyping_cytosine"].lower() in "yestrue"
 
         batch_size = 4096
         if "batch_size" in kvargs:
@@ -201,7 +223,8 @@ if __name__ == "__main__":
             gfa_worker_num = 2
 
         mcall.mcall_main(
-            work_dir, gfa_file,
+            work_dir, kvargs["index_prefix"],
+            cg_only=cg_only, genotyping_cytosine=genotyping_cytosine,
             minimum_identity=minimum_identity, minimum_mapq=minimum_mapq, discard_multimapped=discard_multimapped,
             process_count=thread, alignment_parse_worker_num=1, gfa_worker_num=gfa_worker_num, batch_size=batch_size
         )
@@ -224,9 +247,17 @@ if __name__ == "__main__":
 
         graph_all_cpg_fp = index_prefix + ".cpg.tsv"
         cytosine_fp = work_dir + "/graph.methyl"
+        genotype_cytosine_fp = work_dir + "/genotype.info.txt"
         merged_cytosine_in_cpg_context_fp = work_dir + "/graph.cpg.tsv"
+        validated_cytosine_fp = work_dir + "/graph.validated.CG.methyl"
 
-        utility.merge_graph_cytosines(graph_all_cpg_fp, cytosine_fp, merged_cytosine_in_cpg_context_fp)
+        utility.merge_graph_cytosines(
+            graph_all_cpg_fp,
+            cytosine_fp,
+            genotype_cytosine_fp,
+            merged_cytosine_in_cpg_context_fp,
+            full_position=False
+        )
 
     # One command to run all
     if command == "main":
@@ -255,6 +286,8 @@ if __name__ == "__main__":
         minimum_identity = 20
         minimum_mapq = 0
         discard_multimapped = True
+        cg_only = True
+        genotyping_cytosine = False
 
         if "minimum_identity" in kvargs:
             minimum_identity = int(kvargs["minimum_identity"])
@@ -262,6 +295,10 @@ if __name__ == "__main__":
             minimum_mapq = int(kvargs["minimum_mapq"])
         if "discard_multimapped" in kvargs:
             discard_multimapped = kvargs["discard_multimapped"].lower() in "yestrue"
+        if "cg_only" in kvargs:
+            cg_only = kvargs["cg_only"].lower() in "yestrue"
+        if "genotyping_cytosine" in kvargs:
+            genotyping_cytosine = kvargs["genotyping_cytosine"].lower() in "yestrue"
 
         assert minimum_identity >= 0
         assert minimum_mapq >= 0
@@ -277,19 +314,11 @@ if __name__ == "__main__":
         alignments.alignment_main(fq1, fq2, work_dir, index_prefix, compress=compress, thread=thread, directional=directional)
 
         mcall.mcall_main(
-            work_dir, index_prefix + ".wl.gfa",
+            work_dir, index_prefix,
+            cg_only=cg_only, genotyping_cytosine=genotyping_cytosine,
             minimum_identity=minimum_identity, minimum_mapq=minimum_mapq, discard_multimapped=discard_multimapped,
             process_count=thread, alignment_parse_worker_num=1, gfa_worker_num=gfa_worker_num, batch_size=batch_size
         )
-
-        sys.exit(0)
-
-    # TMP fix if memory usage is too high
-    if command == "mergegaf":
-        work_dir = kvargs.get("work_dir", "./")
-
-        alignments.alignment_merge_main(work_dir, worker_num=thread)
-        alignments.alignment_clenup(work_dir)
 
         sys.exit(0)
 

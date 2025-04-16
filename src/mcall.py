@@ -3,7 +3,9 @@
 import os
 import re
 import sys
+import json
 import time
+import utility
 
 import multiprocessing
 import multiprocessing.queues
@@ -16,6 +18,18 @@ import gfa
 
 
 
+
+
+
+
+
+
+ref_converted_genotype_dict = {
+    "C": "T",
+    "G": "A",
+}
+
+
 # Regex Patterns
 alignment_csz_tag_start_pattern = re.compile(r"^(\+|-)([ACGTN]*)")
 alignment_csz_tag_end_pattern = re.compile(r"(\+|-)([ACGTN]*)$")
@@ -25,6 +39,8 @@ alignment_csz_tag_mismatch = re.compile(r"\*\w\w")
 
 alignment_csz_tag_deletion = re.compile(r"-\w")
 alignment_csz_tag_insertion = re.compile(r"\+\w")
+
+
 
 
 
@@ -201,12 +217,13 @@ def get_best_alignment_from_same_read_pair_OLD(
 
 
 def get_best_alignment_from_same_read_pair(
-        lines_for_same_read,
+        lines_for_same_read, node_replacement_dict,
         minimum_identity=0,
         minimum_mapq=0,
         discard_multimapped=True):
 
     # print(minimum_identity, minimum_mapq, discard_multimapped)
+    # print(node_replacement_dict)
 
     aligned_count = 0
     multimapped_count = 0
@@ -222,6 +239,14 @@ def get_best_alignment_from_same_read_pair(
         for i in [1, 2, 3, 6, 7, 8, 9, 10, 11]:
             alignment[i] = int(alignment[i])
         alignment[5] = alignment_path_parse(alignment[5])
+        segment_list = alignment[5][0]
+        for si in range(len(segment_list)):
+            segmentID = segment_list[si]
+            # print(segmentID, node_replacement_dict)
+            if segmentID in node_replacement_dict:
+                segment_list[si] = node_replacement_dict[segmentID]
+                # print("Replace: ", segmentID, node_replacement_dict[segmentID])
+        
 
         for tag in alignment[12:]:
 
@@ -258,13 +283,13 @@ def get_best_alignment_from_same_read_pair(
 
 
 
-def alignment_to_methylation(best_alignments, sequence_dict):
+def alignment_to_methylation(best_alignments, sequence_dict, cg_only=True, perform_gcall=False, phred_score_threshold=20):
     error_count = 0
     mcall_per_frag = set()
+    gcall_per_frag = set()
     for best_alignment in best_alignments:
 
         l = best_alignment
-
 
         # VG giraffe always outputs + here, just in case
         assert l[4] == "+"
@@ -280,7 +305,9 @@ def alignment_to_methylation(best_alignments, sequence_dict):
         alignment_tag = None
         original_bs_read = None
         read_conversion_type = None
+        phred_score = None
         for tag in l[12:]:
+            tag = tag.strip()
 
             if tag.startswith("cs:Z:"):
                 alignment_tag = tag[5:]
@@ -288,6 +315,8 @@ def alignment_to_methylation(best_alignments, sequence_dict):
                 original_bs_read = tag[5:]
             if tag.startswith("rc:Z:"):
                 read_conversion_type = tag[5]
+            if tag.startswith("bq:Z:"):
+                phred_score = tag[5:]
 
         if alignment_tag is None or original_bs_read is None or read_conversion_type is None:
             error_count += 1
@@ -312,6 +341,8 @@ def alignment_to_methylation(best_alignments, sequence_dict):
 
         path_seq_portion = path_sequence[path_start:path_end]
         bs_read_portion = original_bs_read[query_start:query_end]
+        phred_score_portion = phred_score[query_start:query_end]
+
 
         # Reconstruct the alignment
         for indel in indels:
@@ -319,10 +350,15 @@ def alignment_to_methylation(best_alignments, sequence_dict):
             indel_leng = indel[1]
             if indel[2] == "-":
                 bs_read_portion = bs_read_portion[:indel_start] + " " * indel_leng + bs_read_portion[indel_start:]
+                phred_score_portion = phred_score_portion[:indel_start] + " " * indel_leng + phred_score_portion[indel_start:]
             else:
                 bs_read_portion = bs_read_portion[:indel_start] + bs_read_portion[indel_start + indel_leng:]
+                phred_score_portion = phred_score_portion[:indel_start] + phred_score_portion[indel_start + indel_leng:]
+        
 
-        if len(path_seq_portion) != rl or len(path_seq_portion) != len(bs_read_portion):
+        
+
+        if len(path_seq_portion) != rl or len(path_seq_portion) != len(bs_read_portion) or len(bs_read_portion) != len(phred_score_portion):
             error_count += 1
 
             continue
@@ -409,17 +445,44 @@ def alignment_to_methylation(best_alignments, sequence_dict):
         for i, ref_base in enumerate(path_seq_portion):
             path_pos = i + path_start
             # ref_base = path_seq_portion[i]
+
             read_base = bs_read_portion[i]
+            phred_score_letter_base = phred_score_portion[i]
+            if read_base == " ":
+                assert phred_score_letter_base == " "
+                continue
+
+            phred_score_int_base = utility.phred_to_int(phred_score_letter_base)
+
+
             category = "U"
 
+            if phred_score_int_base < phred_score_threshold:
+                # For both genotype and methylation calling
+                continue
 
+            if ref_base not in "CG":
+                continue
+
+            interesting = [False, False]
+            # Genotyping call
+            if perform_gcall:
+                # The reason for genotype call is to remove the case of C->T and G->A mutation. This will cause inaccurate methylation call.
+                # Why not care C->G, C->A, G->C, or G->T? Because if it happens, it doesn't interfere with the methylation call.
+                if ref_base == "C" and read_conversion_type == "G":
+                    interesting[0] = True
+                elif ref_base == "G" and read_conversion_type == "C":
+                    interesting[0] = True
+
+            # Methylation call
             if ref_base == "C" and read_conversion_type == "C":
-                if read_base not in "CT":
-                    continue
+                if read_base in "CT":
+                    interesting[1] = True
             elif ref_base == "G" and read_conversion_type == "G":
-                if read_base not in "GA":
-                    continue
-            else:
+                if read_base in "GA":
+                    interesting[1] = True
+
+            if True not in interesting:
                 continue
 
 
@@ -434,6 +497,16 @@ def alignment_to_methylation(best_alignments, sequence_dict):
                 segment_pos = segment_length - (path_len_so_far - path_pos)
             else:
                 segment_pos = path_len_so_far - path_pos - 1
+
+
+            if interesting[0]:
+                # Genotype call
+                a, b = ref_base, read_base
+                if segment_orientation < 0:
+                    a = utility.atcg_complement_dict.get(ref_base, "N")
+                    b = utility.atcg_complement_dict.get(read_base, "N")
+                gcall_per_frag.add((segmentID, segment_pos, a, b, phred_score_letter_base))
+                continue
 
 
 
@@ -519,6 +592,9 @@ def alignment_to_methylation(best_alignments, sequence_dict):
             # print(i, category, ref_base, read_base, methylated)
             # print(path_seq_portion[i], bs_read_portion[i], )
 
+            if cg_only and category != "CG":
+                continue
+
             d = (segmentID, segment_pos, base_strand, category, methylated)
             # Just to verify fragment coverage
             #if d in mcall_per_frag:
@@ -529,11 +605,11 @@ def alignment_to_methylation(best_alignments, sequence_dict):
             mcall_per_frag.add(d)
 
     mcall_per_frag = list(sorted(mcall_per_frag))
-    return mcall_per_frag
+    return mcall_per_frag, gcall_per_frag
 
 
 
-def alignment_parse(work_dir, minimum_identity=50, minimum_mapq=20, discard_multimapped=True, pid="0_0"):
+def alignment_parse(work_dir, node_replacement_dict, minimum_identity=50, minimum_mapq=20, discard_multimapped=True, pid="0_0"):
     # Alignment count, low confidence count, error count, multi-mapped alignment count
     counter1 = 0
     counter2 = 0
@@ -562,7 +638,7 @@ def alignment_parse(work_dir, minimum_identity=50, minimum_mapq=20, discard_mult
 
             # Figure out the best alignment for the read pair.
             best_alignments, aligned_count, mpc, lcc = get_best_alignment_from_same_read_pair(
-                lines_for_same_read,
+                lines_for_same_read, node_replacement_dict,
                 minimum_identity=minimum_identity,
                 minimum_mapq=minimum_mapq,
                 discard_multimapped=discard_multimapped
@@ -579,7 +655,7 @@ def alignment_parse(work_dir, minimum_identity=50, minimum_mapq=20, discard_mult
 
 
     best_alignments, aligned_count, mpc, lcc = get_best_alignment_from_same_read_pair(
-        lines_for_same_read,
+        lines_for_same_read, node_replacement_dict,
         minimum_identity=minimum_identity,
         minimum_mapq=minimum_mapq,
         discard_multimapped=discard_multimapped
@@ -626,6 +702,7 @@ def get_methylation_output_tmp_fps_from_work_dir(work_dir):
 # Single thread version
 def call_single(
         gfa_fp, work_dir,
+        cg_only=True,
         minimum_identity=50, minimum_mapq=20, discard_multimapped=True
 ):
 
@@ -636,6 +713,7 @@ def call_single(
     for i in range(10):
         mo = f"{work_dir}/mcall.0.{i}.tmp"
         methylation_output.append(open(mo, "w"))
+
 
     for best_alignments in alignment_parse(
             work_dir,
@@ -649,7 +727,7 @@ def call_single(
 
 
             ts = time.time()
-            mcall_per_frag = alignment_to_methylation(best_alignments, sequence_dict)
+            mcall_per_frag, gcall_per_frag = alignment_to_methylation(best_alignments, sequence_dict, cg_only=cg_only)
             #print(f"Call: {time.time() - ts:.8f}")
             #print()
 
@@ -666,6 +744,7 @@ def call_single(
                     last_segmentID = segmentID
                 else:
                     mcall_tmp.write(f"\t{segment_pos}\t{base_strand}\t{category}\t{methylated}\n")
+
 
 
     return None
@@ -702,14 +781,22 @@ class WorkerConterAndTimer(object):
 
 
 # Worker Deamon Processes Functions
-def alignment_parse_worker(pid, work_dir, output_queue, minimum_identity=50, minimum_mapq=20, discard_multimapped=True, batch_size=4096):
+def alignment_parse_worker(pid, work_dir, node_replacement_dict_fp, output_queue, minimum_identity=50, minimum_mapq=20, discard_multimapped=True, genotyping_cytosine=False, batch_size=4096):
     wct = WorkerConterAndTimer(process_name=f"Alignment Parsing {pid}")
     wct.start()
 
 
+    node_replacement_dict = {}
+    if genotyping_cytosine:
+        with open(node_replacement_dict_fp) as node_replacement_dict_fh:
+            node_replacement_dict_raw = json.load(node_replacement_dict_fh)
+
+        for v in node_replacement_dict_raw.values():
+            node_replacement_dict.update(v)
+
     batch = []
     for r in alignment_parse(
-        work_dir,
+        work_dir, node_replacement_dict,
         minimum_identity=minimum_identity, minimum_mapq=minimum_mapq, discard_multimapped=discard_multimapped,
         pid=f"{pid}"
     ):
@@ -774,16 +861,23 @@ def gfa_worker(pid, gfa_fp, input_queue, output_queue, batch_size=4096):
 
 
 
-def alignment_to_methylation_worker(pid, work_dir, input_queue):
+def alignment_to_methylation_worker(pid, work_dir, cg_only, input_queue, genotyping_cytosine=False):
 
     wct = WorkerConterAndTimer(process_name=f"MCall_{pid}", interval=1000)
 
     methylation_output = []
-    for i in range(10):
+    for i in range(100):
         mo = f"{work_dir}/mcall.{pid}.{i}.tmp"
         methylation_output.append(open(mo, "w"))
 
+    genotype_output = []
+    if genotyping_cytosine:
+        for i in range(100):
+            go = f"{work_dir}/gcall.{pid}.{i}.tmp"
+            genotype_output.append(open(go, "w"))
+
     result = []
+    result_gcall = []
 
     init = False
     while True:
@@ -799,13 +893,14 @@ def alignment_to_methylation_worker(pid, work_dir, input_queue):
         for best_alignments, sequence_dict in pair_batch:
             wct.count()
 
-            mcall_per_frag = alignment_to_methylation(best_alignments, sequence_dict)
+            mcall_per_frag, gcall_per_frag = alignment_to_methylation(best_alignments, sequence_dict, cg_only=cg_only, perform_gcall=genotyping_cytosine)
             result += list(mcall_per_frag)
+            result_gcall += list(gcall_per_frag)
 
         last_segmentID = None
         for (segmentID, segment_pos, base_strand, category, methylated) in sorted(result):
             # print((segmentID, segment_pos, base_strand, category, methylated))
-            mcall_tmp = methylation_output[int(segmentID[-1])]
+            mcall_tmp = methylation_output[int(segmentID[-2:])]
 
             if segmentID != last_segmentID:
                 mcall_tmp.write(f"{segmentID}\t{segment_pos}\t{base_strand}\t{category}\t{methylated}\n")
@@ -813,7 +908,22 @@ def alignment_to_methylation_worker(pid, work_dir, input_queue):
             else:
                 mcall_tmp.write(f"\t{segment_pos}\t{base_strand}\t{category}\t{methylated}\n")
 
+
+        if not genotyping_cytosine:
+            continue
+        last_segmentID = None
+        for gcall0 in result_gcall:
+            segmentID = gcall0[0]
+            gcall_fh = genotype_output[int(segmentID[-2:])]
+
+            if segmentID != last_segmentID:
+                gcall_fh.write("\t".join(list(map(str, gcall0[0:]))) + "\n")
+                last_segmentID = segmentID
+            else:
+                gcall_fh.write("\t"+"\t".join(list(map(str, gcall0[1:]))) + "\n")
+
         result = []
+        result_gcall = []
 
     print(f"MCall Worker {pid} finished", file=sys.stderr)
     return
@@ -869,11 +979,11 @@ def debug_worker(input_queue, output_queue):
 
 
 
-
 # Multi process version
 def call_parallel(
         # Essential
-        gfa_fp, work_dir,
+        gfa_fp, node_replacement_dict_fp, work_dir,
+        cg_only=True, genotyping_cytosine=False,
 
         # Alignment Filtering Parameters
         minimum_identity=50, minimum_mapq=20, discard_multimapped=True,
@@ -889,7 +999,7 @@ def call_parallel(
     q2 = multiprocessing.Queue(maxsize=maxsize)
 
 
-    mcall_worker_num = int(process_count - gfa_worker_num - alignment_parse_worker_num)
+    mcall_worker_num = int(process_count)
     if mcall_worker_num < 1:
         mcall_worker_num = 1
 
@@ -901,7 +1011,7 @@ def call_parallel(
     alignment_parse_process = multiprocessing.Process(
         name=f"MGAR0",
         target=alignment_parse_worker,
-        args=(i, work_dir, q1, minimum_identity, minimum_mapq, discard_multimapped),
+        args=(i, work_dir, node_replacement_dict_fp, q1, minimum_identity, minimum_mapq, discard_multimapped, genotyping_cytosine),
         kwargs={"batch_size": batch_size}
     )
     alignment_parse_process.start()
@@ -923,7 +1033,7 @@ def call_parallel(
         mp = multiprocessing.Process(
             name=f"MGMCall{i}",
             target=alignment_to_methylation_worker,
-            args=(i, work_dir, q2)
+            args=(i, work_dir, cg_only, q2, genotyping_cytosine)
         )
         mp.start()
         mcall_process_pool.append(mp)
@@ -1004,8 +1114,10 @@ def call_parallel(
 
 # Second step
 def mcall_tmp_to_final(work_dir, final_out, max_pid=1000):
+    # Deprecated: This is the old version
+
     segmentID = ""
-    for i in range(10):
+    for i in range(100):
 
         methylation = {}
         for pid in range(max_pid):
@@ -1025,6 +1137,7 @@ def mcall_tmp_to_final(work_dir, final_out, max_pid=1000):
                 methylation[key][int(l[3])] += 1
 
             fh.close()
+
             os.remove(fn)
 
         for key in methylation.keys():
@@ -1040,8 +1153,317 @@ def mcall_tmp_to_final(work_dir, final_out, max_pid=1000):
 
 
 
+
+
+
+def heterozygous_prob(n, k):
+    if k > n - k:  # Take advantage of symmetry
+        k = n - k
+    result = 1
+    for i in range(1, k + 1):
+        result = result * (n - i + 1) // i
+
+    for d in range(n):
+        if result % 2 == 0 or result > 1e40:
+            result = result // 2
+        else:
+            result = result / 2
+
+    return result
+
+
+def merge_genotype_func(work_dir, split_i, max_pid=100, coverage_threshold=5):
+    homozygous_ref_prior_prob = 1 / 3
+    homozygous_alt_prior_prob = 1 / 3
+    heterozygous_ref_alt_prior_prob = 1 / 3
+
+    # This step piles up the data
+    pileup = {}
+    res = {}
+    for pid_i in range(max_pid):
+        f2 = f"{work_dir}/gcall.{pid_i}.{split_i}.tmp"
+
+        if not os.path.exists(f2):
+            continue
+        last_segment = None
+        with open(f2) as f:
+            for l in f:
+                l = l.strip().split()
+                if len(l) == 5:
+                    last_segment = l.pop(0)
+
+                if last_segment not in pileup:
+                    pileup[last_segment] = {}
+
+                pos = int(l[0])
+                ref = l[1]
+                alt = l[2]
+                qual = l[3]
+
+                k = (pos, ref)
+                if k not in pileup[last_segment]:
+                    pileup[last_segment][k] = {}
+
+                if alt not in pileup[last_segment][k]:
+                    pileup[last_segment][k][alt] = []
+
+                pileup[last_segment][k][alt].append(qual)
+
+        os.remove(f2)
+
+    # Genotyping call
+    i = 0
+    genotype_interesting_case_pileup = []
+    for segment in pileup.keys():
+        for (pos, ref), alt_phred_scores in pileup[segment].items():
+            i += 1
+
+            genotypes_sorted = sorted(alt_phred_scores.keys(), key=lambda x: len(alt_phred_scores[x]), reverse=True)
+            top2_genotypes = genotypes_sorted[:2]
+            if not ref_converted_genotype_dict[ref] in top2_genotypes:
+                continue
+
+            combined_coverage = 0
+            for genotype in top2_genotypes:
+                combined_coverage += len(alt_phred_scores[genotype])
+
+            if combined_coverage < coverage_threshold:
+                continue
+
+            ref_count = len(alt_phred_scores.get(ref, []))
+            ref_coverted_count = len(alt_phred_scores.get(ref_converted_genotype_dict[ref], []))
+
+            # check whether the ref_converted genotype is most likely homozygous?
+            # This is a short cut, if all reads support ref_converted, then no need to run bayes model
+            homozygous_ref_converted_shortcut = False
+            if ref_coverted_count == combined_coverage:
+                # Homozygous converted genotype, false positive
+                homozygous_ref_converted_shortcut = True
+
+                # ref, alt, cov, FP, likelihood of homozygous ref, likelihood of heterozygous, likelihood of homozygous alt
+                res[(segment, pos)] = [ref, top2_genotypes[0], combined_coverage, True, "*", "*", "*"]
+                continue
+
+            if ref not in top2_genotypes:
+                res[(segment, pos)] = [ref, "|".join(top2_genotypes), combined_coverage, True, "*", "*", "*"]
+                continue
+
+            assert ref in top2_genotypes
+            assert ref_converted_genotype_dict[ref] in top2_genotypes
+
+            likelihoods = [homozygous_ref_prior_prob, homozygous_alt_prior_prob, heterozygous_ref_alt_prior_prob]
+            for qual in alt_phred_scores[ref]:
+                likelihoods[1] *= utility.phred_to_prob(qual)
+                likelihoods[0] *= (1 - utility.phred_to_prob(qual))
+
+            for qual in alt_phred_scores[ref_converted_genotype_dict[ref]]:
+                likelihoods[1] *= (1 - utility.phred_to_prob(qual))
+                likelihoods[0] *= utility.phred_to_prob(qual)
+
+            ref_and_converted_cov = ref_count + ref_coverted_count
+            p_het = heterozygous_prob(ref_and_converted_cov, ref_count)
+            likelihoods[2] *= p_het
+
+            ls = sum(likelihoods)
+            if ls == 0:
+                ls = 1
+            likelihoods = [l / ls for l in likelihoods]
+
+            if likelihoods[1] > likelihoods[0] and likelihoods[1] > likelihoods[2]:
+                res[(segment, pos)] = [ref, "|".join(top2_genotypes), combined_coverage, True] + likelihoods
+                continue
+
+            # print(segment, pos, ref, alt_phred_scores)
+            # sys.exit(3)
+
+            # l = [segment, pos, "+", "GT", ref_count, ref_coverted_count, ref_count+ref_coverted_count, ref_coverted_count/(ref_count+ref_coverted_count)]
+            # genotype_interesting_case_pileup.append("\t".join(map(str, l)) + "\n")
+            # out_fh.write("\t".join(map(str, l)) + "\n")
+            # print(l)
+
+    return res
+
+
+def merge_methylation_func(work_dir, split_i, max_pid=100):
+    methylation = {}
+    segmentID = ""
+    for pid in range(max_pid):
+        # working with methylation now
+        fn = f"{work_dir}/mcall.{pid}.{split_i}.tmp"
+        if not os.path.exists(fn):
+            continue
+
+        with open(fn) as fh:
+            for l in fh:
+                l = l.strip().split("\t")
+                if len(l) == 5:
+                    segmentID = l.pop(0)
+                key = (segmentID, l[0], l[1], l[2])
+                if key not in methylation:
+                    methylation[key] = [0, 0]
+                methylation[key][int(l[3])] += 1
+
+        os.remove(fn)
+
+    return methylation
+
+
+def extraction_merge_and_cleanup_by_split(work_dir, split_i, max_pid=100, coverage_threshold=5):
+    genotypes = merge_genotype_func(work_dir, split_i, max_pid=max_pid, coverage_threshold=coverage_threshold)
+    methylation = merge_methylation_func(work_dir, split_i, max_pid=max_pid)
+
+    mres = []
+    gres = []
+
+    # print(len(genotypes), len(methylation))
+    # print(list(genotypes.keys())[0])
+    # print(list(methylation.keys())[0])
+
+    for key in methylation.keys():
+        k2 = (key[0], int(key[1]))
+        if k2 in genotypes:
+            # print("Genotype and methylation overlap", key, k2)
+            continue
+
+        unmethylated = methylation[key][0]
+        methylated = methylation[key][1]
+        coverage = unmethylated + methylated
+        mlevel = methylated / coverage
+        mres.append(f"{key[0]}\t{key[1]}\t{key[2]}\t{key[3]}\t{unmethylated}\t{methylated}\t{coverage}\t{mlevel}\n")
+
+    for key in genotypes.keys():
+        gv = genotypes[key]
+        line = list(key) + gv
+        gres.append("\t".join(map(str, line)) + "\n")
+
+    return mres, gres
+
+
+def extraction_merge_and_cleanup_by_split_single_arg(arg):
+    # print(arg)
+    assert len(arg) == 4
+    work_dir, split_i, max_pid, coverage_threshold = arg
+    return extraction_merge_and_cleanup_by_split(work_dir, split_i, max_pid=max_pid,
+                                                 coverage_threshold=coverage_threshold)
+
+
+# Single threaded version
+def extraction_merge_and_cleanup(work_dir, max_pid=100, coverage_threshold=5):
+    methylation_out_fp = os.path.join(work_dir, "graph.methyl")
+    genotype_out_fp = os.path.join(work_dir, "genotype.info.txt")
+
+    genotyped = False
+
+    mfh = open(methylation_out_fp, "w")
+    gfh = open(genotype_out_fp, "w")
+
+    for split_i in range(100):
+        # print(split_i)
+        mres, gres = extraction_merge_and_cleanup_by_split(work_dir, split_i, max_pid=max_pid,
+                                                           coverage_threshold=coverage_threshold)
+
+        for mline in mres:
+            mfh.write(mline)
+
+        for gline in gres:
+            genotyped = True
+            gfh.write(gline)
+
+    mfh.close()
+    gfh.close()
+
+    if not genotyped:
+        os.remove(genotype_out_fp)
+
+    return
+
+
+def cytosine_CG_validation(index_prefix, wd):
+    cpg_table_fp = f"{index_prefix}.cpg.tsv"
+
+    genotype_info_fp = f"{wd}/genotype.info.txt"
+    input_cytosine_table_fp = f"{wd}/graph.methyl"
+
+    assert os.path.exists(cpg_table_fp)
+    assert os.path.exists(input_cytosine_table_fp)
+    if not os.path.exists(genotype_info_fp):
+        return
+
+    invalid_cytosines = set()
+    with open(genotype_info_fp) as fh:
+        for l in fh:
+            segID, pos, *others = l.strip().split("\t")
+            pos = int(pos)
+
+            invalid_cytosines.add((segID, pos))
+
+    with open(cpg_table_fp) as fh:
+        for l in fh:
+            cpgid, segid1, pos1, segid2, pos2, *others = l.strip().split("\t")
+            c1 = (segid1, int(pos1))
+            c2 = (segid2, int(pos2))
+
+            invalid = c1 in invalid_cytosines or c2 in invalid_cytosines
+            if invalid:
+                invalid_cytosines.add(c1)
+                invalid_cytosines.add(c2)
+
+    f1p = f"{wd}/graph.methyl.val"
+    f1h = open(f1p, "w")
+    with open(input_cytosine_table_fp) as f2h:
+        for l in f2h:
+            segID, pos, *others = l.strip().split("\t")
+            pos = int(pos)
+
+            if (segID, pos) not in invalid_cytosines:
+                f1h.write(l)
+    f1h.close()
+
+    # mv f1p f2h
+    os.remove(input_cytosine_table_fp)
+    os.rename(f1p, input_cytosine_table_fp)
+
+    return
+
+
+# multithreaded version
+def extraction_merge_and_cleanup_mp(work_dir, cpu_count, max_pid=100, coverage_threshold=5):
+    pool = multiprocessing.Pool(processes=cpu_count)
+    args = [(work_dir, split_i, max_pid, coverage_threshold) for split_i in range(100)]
+    results = pool.imap_unordered(
+        extraction_merge_and_cleanup_by_split_single_arg,
+        args
+    )
+    pool.close()
+
+    methylation_out_fp = os.path.join(work_dir, "graph.methyl")
+    genotype_out_fp = os.path.join(work_dir, "genotype.info.txt")
+    mfh = open(methylation_out_fp, "w")
+    gfh = open(genotype_out_fp, "w")
+    genotyped = False
+
+    for mres, gres in results:
+        for mline in mres:
+            mfh.write(mline)
+
+        for gline in gres:
+            genotyped = True
+            gfh.write(gline)
+
+    if not genotyped:
+        os.remove(genotype_out_fp)
+
+    pool.join()
+
+    return
+
+
+
+
+
 def mcall_main(
-        work_dir, gfa_fp,
+        work_dir, index_prefix,
+        cg_only=True, genotyping_cytosine=False,
         minimum_identity=50, minimum_mapq=20, discard_multimapped=True,
         process_count=1, alignment_parse_worker_num=1, gfa_worker_num=1, batch_size=4096
 
@@ -1049,10 +1471,16 @@ def mcall_main(
     #print("DEV version")
     #sys.stderr.write("DEV version")
 
+    gfa_fp = f"{index_prefix}.wl.gfa"
+    node_replacement_dict_fp = f"{index_prefix}.wl.node.replacement.json"
+
     start_ts = time.time()
-    if process_count <= 1:
+    if process_count <= -1:
+        # Not maintained
+        raise RuntimeError("Single process mode is not supported any more. Please use multi-process mode.")
         call_single(
             gfa_fp, work_dir,
+            cg_only=cg_only,
             minimum_identity=minimum_identity,
             minimum_mapq=minimum_mapq,
             discard_multimapped=discard_multimapped
@@ -1061,7 +1489,8 @@ def mcall_main(
     else:
         call_parallel(
             # Essential
-            gfa_fp, work_dir,
+            gfa_fp, node_replacement_dict_fp, work_dir,
+            cg_only=cg_only, genotyping_cytosine=genotyping_cytosine,
 
             # Alignment Filtering Parameters
             minimum_identity=minimum_identity,
@@ -1075,13 +1504,26 @@ def mcall_main(
 
     step1_time = time.time() - start_ts
 
-    final_out = open(f"{work_dir}/graph.methyl", "w")
-    mcall_tmp_to_final(work_dir, final_out)
-    final_out.close()
+    # final_out = open(f"{work_dir}/graph.methyl", "w")
+    # mcall_tmp_to_final(work_dir, final_out)
+    # final_out.close()
+
+    cpu_count = process_count
+    if process_count > 10:
+        # Each process takes roughly 5gb of memory, using too many processes will cause high memory usage
+        cpu_count = 10
+
+    extraction_merge_and_cleanup_mp(work_dir, cpu_count, max_pid=100, coverage_threshold=5)
+
+    if cg_only and genotyping_cytosine:
+        cytosine_CG_validation(index_prefix, work_dir)
 
     step2_time = time.time() - start_ts - step1_time
 
     return step1_time, step2_time
+
+
+
 
 
 if __name__ == "__main__":
