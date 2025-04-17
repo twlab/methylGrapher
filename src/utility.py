@@ -747,7 +747,7 @@ Commands:
 Help:
     methylGrapher help
     Or
-    https://twlab.github.io/methylGrapher/build/html/
+    Read the detailed documentation: https://twlab.github.io/methylGrapher/build/html/
 
 PrepareGenome:
     It adds lambda phage genome to your genome graph, converts a GFA file into fully G->A and C->T converted GFA file, and indexes it for vg giraffe alignment.
@@ -755,35 +755,31 @@ PrepareGenome:
     # Input options
     -gfa <gfa_file_path> 
     -lp <lambda_phage_genome_path>
+    
     # Output options
     -prefix <output_prefix> 
     -compress <Y/N>
+    
     # Computing options
     -t <number_of_thread(s)> 
 
 Main:
-    It automatically executes PrepareLibrary, Align and MethylCall in a sequence.
+    It automatically executes Align and MethylCall in a sequence.
     methylGrapher Main
-    # Input options
-    -fq1 <fastq_file_path> 
-    -fq2 <fastq_file_path> 
-    -index_prefix <prefix> 
-    # Output options
-    -work_dir <work_directory> 
-    -compress <Y/N> (default: N)
-    # Computing options
-    -t <number_of_thread(s)> (default: 1)
-    -directional <Y/N> (default: Y) 
-    # MethylCall options
-    -discard_multimapped <Y/N> (default: Y)
-    -minimum_identity <minimum_identity> (default: 20)
-    -minimum_mapq <minimum_mapq> (default: 0)
+    # Align options: refer to Align section
+    # MethylCall options: refer to MethylCall section
 
 Align:
     VG Giraffe alignment, please provide work directory and index prefix.
     methylGrapher Align 
+    # Required parameters
     -index_prefix <prefix> 
+    -fq1 <fastq_file_path> 
+    -fq2 <fastq_file_path> 
     -work_dir <work_directory> 
+    
+    # Computing options
+    -t <number_of_thread(s)> (default: 1)
     -directional <Y/N> (default: Y)
     -compress <Y/N> (default: N)
 
@@ -791,11 +787,19 @@ MethylCall:
     Methylation call from vg giraffe alignment result.
     methylGrapher MethylCall 
     -work_dir <work_directory>
-
+    
+    # Alignment filtering options
     -discard_multimapped <Y/N> (default: Y)
     -minimum_identity <minimum_identity> (default: 20)
     -minimum_mapq <minimum_mapq> (default: 0)
-
+    
+    # Methylation calling options
+    -cg_only <Y/N> (default: Y), only output methylation call in CG context
+    
+    # Genotype calling options
+    -genotyping_cytosine <Y/N> (default: N)
+    
+    # Computing options
     -t <number_of_thread(s)> (default: 1)
     -batch_size <batch_size> (default: 4096)
 
