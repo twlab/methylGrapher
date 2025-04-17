@@ -90,6 +90,8 @@
 <p>Alignment: <a class="reference external" href="https://github.com/vgteam/vg">VG Giraffe</a></p>
 <p>Python3: Tested on 3.9, 3.10, 3.11 and 3.12.
 I would recommend 3.12 as it is the latest version and has the best performance.</p>
+<p>VG: Tested from 1.49 to 1.63.1</p>
+<p>1.61.0 is recommended at the moment: from 1.49 to 1.61 all seems fine, however the short read mapping speed is around 3 times slower than the previous versions.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>You must ensure that both the VG toolkit and Python 3 are installed and added to your PATH.</p>
@@ -105,7 +107,7 @@ I would recommend 3.12 as it is the latest version and has the best performance.
 <h2>Install via CONDA<a class="headerlink" href="#install-via-conda" title="Link to this heading"></a></h2>
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>methylGrapher<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
 conda<span class="w"> </span>activate<span class="w"> </span>methylGrapher
-<span class="c1"># Not recommended, but if you want to use conda to install vg, you can do so.</span>
+<span class="c1"># Not recommended, but if you want to use conda to install vg, you can do so. Download VG from their release page instead.</span>
 conda<span class="w"> </span>install<span class="w"> </span>bioconda::vg
 pip<span class="w"> </span>install<span class="w"> </span>methylGrapher
 </pre></div>

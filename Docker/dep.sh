@@ -16,9 +16,12 @@ mv GraphAligner /bin/
 
 
 cd /bin
-wget https://github.com/vgteam/vg/releases/download/v1.55.0/vg
+wget https://github.com/vgteam/vg/releases/download/v1.64.1/vg
+mv vg vg_v1.64.1
+wget https://github.com/vgteam/vg/releases/download/v1.61.0/vg
 
 
 chmod +x vg
+chmod +x vg_v1.64.1
 chmod +x fastuniq
 
