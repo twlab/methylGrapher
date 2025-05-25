@@ -4,7 +4,7 @@ __author__ = "Wenjin Zhang"
 __copyright__ = "Copyright 2023-2025, Ting Wang Lab"
 __credits__ = ["Juan Macias"]
 __license__ = "MIT"
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __maintainer__ = "Wenjin Zhang"
 __email__ = "wenjin@wustl.edu"
 
@@ -77,6 +77,70 @@ if __name__ == "__main__":
         del kvargs["t"]
     if "vg_path" in kvargs:
         vg_path = kvargs["vg_path"]
+
+
+
+    work_dir = "./"
+
+    # Default parameters for methylation calling
+    minimum_identity = 20
+    minimum_mapq = 0
+    batch_size = 4096
+    discard_multimapped = True
+    cg_only = True
+    genotyping_cytosine = False
+    index_prefix = None
+
+    fq1 = None
+    fq2 = None
+
+    compress = False
+    directional = True
+
+
+    if "work_dir" in kvargs:
+        work_dir = kvargs.get("work_dir", "./")
+
+    if "minimum_identity" in kvargs:
+        minimum_identity = int(kvargs["minimum_identity"])
+    if "minimum_mapq" in kvargs:
+        minimum_mapq = int(kvargs["minimum_mapq"])
+    if "discard_multimapped" in kvargs:
+        discard_multimapped = kvargs["discard_multimapped"].lower() in "yestrue"
+    if "cg_only" in kvargs:
+        cg_only = kvargs["cg_only"].lower() in "yestrue"
+    if "genotyping_cytosine" in kvargs:
+        genotyping_cytosine = kvargs["genotyping_cytosine"].lower() in "yestrue"
+    if "batch_size" in kvargs:
+        batch_size = int(kvargs["batch_size"])
+    if "index_prefix" in kvargs:
+        index_prefix = kvargs["index_prefix"]
+
+    if "fq1" in kvargs:
+        fq1 = kvargs["fq1"]
+    if "fq2" in kvargs:
+        fq2 = kvargs["fq2"]
+
+    if "compress" in kvargs:
+        compress = kvargs.get("compress", "N")
+        if compress.lower() == "y":
+            compress = True
+        else:
+            compress = False
+
+    if "directional" in kvargs:
+        directional = kvargs.get("directional", "Y")
+        if directional.lower() == "y":
+            directional = True
+        else:
+            directional = False
+
+
+    assert minimum_identity >= 0
+    assert minimum_mapq >= 0
+
+
+
 
     if command in ["help", "-h", "--help"]:
         print(help.help_text())
@@ -160,25 +224,12 @@ if __name__ == "__main__":
 
     # Alignment and related stuff...
     if command == "align":
+        assert fq1 is not None
+        assert index_prefix is not None
 
-        fq1 = kvargs["fq1"]
-        fq2 = kvargs.get("fq2", None)
-
-        work_dir = kvargs.get("work_dir", "./")
-        index_prefix = kvargs["index_prefix"]
         output_format = "gaf"
 
-        compress = kvargs.get("compress", "N")
-        if compress.lower() == "y":
-            compress = True
-        else:
-            compress = False
 
-        directional = kvargs.get("directional", "Y")
-        if directional.lower() == "y":
-            directional = True
-        else:
-            directional = False
 
         alignments.alignment_main(fq1, fq2, work_dir, index_prefix,
                                   compress=compress,
@@ -190,40 +241,14 @@ if __name__ == "__main__":
 
     # Call methylation
     if command == "methylcall":
-        work_dir = kvargs.get("work_dir", "./")
-        # gfa_file = kvargs["index_prefix"] + ".wl.gfa"
-
-        minimum_identity = 20
-        minimum_mapq = 0
-        discard_multimapped = True
-        cg_only = True
-        genotyping_cytosine = False
-
-
-        if "minimum_identity" in kvargs:
-            minimum_identity = int(kvargs["minimum_identity"])
-        if "minimum_mapq" in kvargs:
-            minimum_mapq = int(kvargs["minimum_mapq"])
-        if "discard_multimapped" in kvargs:
-            discard_multimapped = kvargs["discard_multimapped"].lower() in "yestrue"
-        if "cg_only" in kvargs:
-            cg_only = kvargs["cg_only"].lower() in "yestrue"
-        if "genotyping_cytosine" in kvargs:
-            genotyping_cytosine = kvargs["genotyping_cytosine"].lower() in "yestrue"
-
-        batch_size = 4096
-        if "batch_size" in kvargs:
-            batch_size = int(kvargs["batch_size"])
-
-        assert minimum_identity >= 0
-        assert minimum_mapq >= 0
+        assert index_prefix is not None
 
         gfa_worker_num = 1
         if thread > 20:
             gfa_worker_num = 2
 
         mcall.mcall_main(
-            work_dir, kvargs["index_prefix"],
+            work_dir, index_prefix,
             cg_only=cg_only, genotyping_cytosine=genotyping_cytosine,
             minimum_identity=minimum_identity, minimum_mapq=minimum_mapq, discard_multimapped=discard_multimapped,
             process_count=thread, alignment_parse_worker_num=1, gfa_worker_num=gfa_worker_num, batch_size=batch_size
@@ -233,8 +258,7 @@ if __name__ == "__main__":
 
     # Conversion rate estimation
     if command == "conversionrate":
-        work_dir = kvargs.get("work_dir", "./")
-        index_prefix = kvargs["index_prefix"]
+        assert index_prefix is not None
 
         s = utility.estimate_conversion_rate_print(index_prefix, work_dir)
         print(s)
@@ -242,8 +266,7 @@ if __name__ == "__main__":
 
     # merge CpG
     if command == "mergecpg":
-        work_dir = kvargs.get("work_dir", "./")
-        index_prefix = kvargs["index_prefix"]
+        assert index_prefix is not None
 
         graph_all_cpg_fp = index_prefix + ".cpg.tsv"
         cytosine_fp = work_dir + "/graph.methyl"
@@ -261,51 +284,8 @@ if __name__ == "__main__":
 
     # One command to run all
     if command == "main":
-
-        work_dir = kvargs.get("work_dir", "./")
-
-        fq1 = kvargs["fq1"]
-        fq2 = kvargs.get("fq2", None)
-
-        index_prefix = kvargs["index_prefix"]
-
-        compress = kvargs.get("compress", "N")
-        if compress.lower() == "y":
-            compress = True
-        else:
-            compress = False
-
-        directional = kvargs.get("directional", "Y")
-        if directional.lower() == "y":
-            directional = True
-        else:
-            directional = False
-
-        alignment_output_format = "gaf"
-
-        minimum_identity = 20
-        minimum_mapq = 0
-        discard_multimapped = True
-        cg_only = True
-        genotyping_cytosine = False
-
-        if "minimum_identity" in kvargs:
-            minimum_identity = int(kvargs["minimum_identity"])
-        if "minimum_mapq" in kvargs:
-            minimum_mapq = int(kvargs["minimum_mapq"])
-        if "discard_multimapped" in kvargs:
-            discard_multimapped = kvargs["discard_multimapped"].lower() in "yestrue"
-        if "cg_only" in kvargs:
-            cg_only = kvargs["cg_only"].lower() in "yestrue"
-        if "genotyping_cytosine" in kvargs:
-            genotyping_cytosine = kvargs["genotyping_cytosine"].lower() in "yestrue"
-
-        assert minimum_identity >= 0
-        assert minimum_mapq >= 0
-
-        batch_size = 4096
-        if "batch_size" in kvargs:
-            batch_size = int(kvargs["batch_size"])
+        assert fq1 is not None
+        assert index_prefix is not None
 
         gfa_worker_num = 1
         if thread > 20:
@@ -331,6 +311,16 @@ if __name__ == "__main__":
         sys.exit(0)
 
 
+
+
+    # TMP fix if memory usage is too high
+    if command == "mergegaf":
+        work_dir = kvargs.get("work_dir", "./")
+
+        alignments.alignment_merge_main(work_dir, worker_num=thread)
+        alignments.alignment_clenup(work_dir)
+
+        sys.exit(0)
 
 
 

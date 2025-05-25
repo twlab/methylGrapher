@@ -458,7 +458,6 @@ def merge_graph_cytosines(cpg_fp, cytosine_fp, genotype_cytosine_fp, out_fp, ful
             skip = False
             for cytosine in cytosines:
                 if cytosine in false_positive_cytosines:
-                    print("SKIP")
                     skip = True
             if skip:
                 continue
@@ -730,7 +729,7 @@ class HelpDocument(object):
 """.strip()
 
     def version(self):
-        return "0.2.0"
+        return "0.2.1"
 
     def help_text_raw(self):
         return """

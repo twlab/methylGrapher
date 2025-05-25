@@ -605,6 +605,7 @@ def alignment_to_methylation(best_alignments, sequence_dict, cg_only=True, perfo
             mcall_per_frag.add(d)
 
     mcall_per_frag = list(sorted(mcall_per_frag))
+    gcall_per_frag = list(sorted(gcall_per_frag))
     return mcall_per_frag, gcall_per_frag
 
 
@@ -793,6 +794,7 @@ def alignment_parse_worker(pid, work_dir, node_replacement_dict_fp, output_queue
 
         for v in node_replacement_dict_raw.values():
             node_replacement_dict.update(v)
+        pass
 
     batch = []
     for r in alignment_parse(
@@ -907,9 +909,11 @@ def alignment_to_methylation_worker(pid, work_dir, cg_only, input_queue, genotyp
                 last_segmentID = segmentID
             else:
                 mcall_tmp.write(f"\t{segment_pos}\t{base_strand}\t{category}\t{methylated}\n")
+        result = []
 
 
         if not genotyping_cytosine:
+            result_gcall = []
             continue
         last_segmentID = None
         for gcall0 in result_gcall:
@@ -922,7 +926,6 @@ def alignment_to_methylation_worker(pid, work_dir, cg_only, input_queue, genotyp
             else:
                 gcall_fh.write("\t"+"\t".join(list(map(str, gcall0[1:]))) + "\n")
 
-        result = []
         result_gcall = []
 
     print(f"MCall Worker {pid} finished", file=sys.stderr)
@@ -1172,7 +1175,7 @@ def heterozygous_prob(n, k):
     return result
 
 
-def merge_genotype_func(work_dir, split_i, max_pid=100, coverage_threshold=5):
+def merge_genotype_func(work_dir, split_i, max_pid=100, coverage_threshold=3):
     homozygous_ref_prior_prob = 1 / 3
     homozygous_alt_prior_prob = 1 / 3
     heterozygous_ref_alt_prior_prob = 1 / 3
@@ -1308,7 +1311,7 @@ def merge_methylation_func(work_dir, split_i, max_pid=100):
     return methylation
 
 
-def extraction_merge_and_cleanup_by_split(work_dir, split_i, max_pid=100, coverage_threshold=5):
+def extraction_merge_and_cleanup_by_split(work_dir, split_i, max_pid=100, coverage_threshold=3):
     genotypes = merge_genotype_func(work_dir, split_i, max_pid=max_pid, coverage_threshold=coverage_threshold)
     methylation = merge_methylation_func(work_dir, split_i, max_pid=max_pid)
 
@@ -1348,7 +1351,7 @@ def extraction_merge_and_cleanup_by_split_single_arg(arg):
 
 
 # Single threaded version
-def extraction_merge_and_cleanup(work_dir, max_pid=100, coverage_threshold=5):
+def extraction_merge_and_cleanup(work_dir, max_pid=100, coverage_threshold=3):
     methylation_out_fp = os.path.join(work_dir, "graph.methyl")
     genotype_out_fp = os.path.join(work_dir, "genotype.info.txt")
 
@@ -1427,7 +1430,7 @@ def cytosine_CG_validation(index_prefix, wd):
 
 
 # multithreaded version
-def extraction_merge_and_cleanup_mp(work_dir, cpu_count, max_pid=100, coverage_threshold=5):
+def extraction_merge_and_cleanup_mp(work_dir, cpu_count, max_pid=100, coverage_threshold=3):
     pool = multiprocessing.Pool(processes=cpu_count)
     args = [(work_dir, split_i, max_pid, coverage_threshold) for split_i in range(100)]
     results = pool.imap_unordered(
@@ -1513,7 +1516,7 @@ def mcall_main(
         # Each process takes roughly 5gb of memory, using too many processes will cause high memory usage
         cpu_count = 10
 
-    extraction_merge_and_cleanup_mp(work_dir, cpu_count, max_pid=100, coverage_threshold=5)
+    extraction_merge_and_cleanup_mp(work_dir, cpu_count, max_pid=100, coverage_threshold=3)
 
     if cg_only and genotyping_cytosine:
         cytosine_CG_validation(index_prefix, work_dir)
