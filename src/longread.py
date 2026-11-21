@@ -368,13 +368,11 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
 
     time_start = time.time()
 
-    gfa_instance = gfa.GraphicalFragmentAssemblySegmentLengthMemory()
-    gfa_instance.parse(gfa_fp)
     if debug or discard_cg_mismatch:
-        # Just in case the sequence is needed for debugging
-        gfa_seq_instance = gfa.GraphicalFragmentAssemblyMemorySegmentOptimized()
-        gfa_seq_instance.parse(gfa_fp)
-
+        gfa_instance = gfa.GraphicalFragmentAssemblyMemorySegmentOptimized()
+    else:
+        gfa_instance = gfa.GraphicalFragmentAssemblySegmentLengthMemory()
+    gfa_instance.parse(gfa_fp)
 
     dur = time.time() - time_start
 
@@ -391,7 +389,7 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
     calc_dur = 0
     calc_dur_mid = 0
 
-    with (open(generate_fp_within_wd(wd, "align.gaf")) as f):
+    with open(generate_fp_within_wd(wd, "align.gaf")) as f:
         for l in f:
 
             l = l.strip().split("\t")
@@ -664,7 +662,7 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
 
 
                         if debug:
-                            segment_seq = gfa_seq_instance.get_sequence_by_segment_ID(corresponding_segment_ID)
+                            segment_seq = gfa_instance.get_sequence_by_segment_ID(corresponding_segment_ID)
                             csp1 = corresponding_segment_pos
                             csp2 = corresponding_segment_pos + 2
                             if csp2 > len(segment_seq):
@@ -682,8 +680,8 @@ def extract_methylation_single_thread(gfa_fp, wd, threads=1, debug=False, discar
                         if discard_cg_mismatch:
                             not_cg = False
 
-                            b1 = gfa_seq_instance.get_sequence_by_segment_ID(segID)[corresponding_segment_pos].upper()
-                            b2 = gfa_seq_instance.get_sequence_by_segment_ID(segID2)[corresponding_segment_pos2].upper()
+                            b1 = gfa_instance.get_sequence_by_segment_ID(segID)[corresponding_segment_pos].upper()
+                            b2 = gfa_instance.get_sequence_by_segment_ID(segID2)[corresponding_segment_pos2].upper()
 
                             
                             if not direction:

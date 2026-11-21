@@ -19,9 +19,6 @@ import longread
 
 if __name__ == "__main__":
 
-    utl = utility.Utility()
-
-
     # Arugment parser
     parser = argparse.ArgumentParser(description='methylGrapher for long reads')
 
@@ -44,9 +41,9 @@ if __name__ == "__main__":
     all_parser = [parser_main, parser_prepare_fasta, parser_align, parser_extraction]
     for p in all_parser:
         p.add_argument('-t', help='number of threads', default=1, type=int)
-        p.add_argument('-debug', help='debug mode')
+        p.add_argument('-debug', type=utility.parse_bool, default=False, metavar='Y/N', help='debug mode')
         p.add_argument('-wd', help='working directory', default="./")
-        p.add_argument('-verbose', help='verbosity')
+        p.add_argument('-verbose', type=utility.parse_bool, default=False, metavar='Y/N', help='verbosity')
 
 
 
@@ -59,7 +56,8 @@ if __name__ == "__main__":
         p.add_argument('-additional_alignment_params', help='Additional alignment parameters')
 
     for p in [parser_main, parser_extraction]:
-        p.add_argument('-discard_cg_mismatch', help='discard methylation information if read aligns to non CG sites')
+        p.add_argument('-discard_cg_mismatch', type=utility.parse_bool, default=True, metavar='Y/N',
+                       help='discard methylation information if read aligns to non CG sites')
         p.add_argument('-mapq_threshold', help='discard read alignment if mapq < threshold', default=10, type=int)
 
     for p in [parser_main, parser_align, parser_extraction]:
@@ -73,9 +71,9 @@ if __name__ == "__main__":
     # Default parameters
     wd = "./"
     thread = 1
-    debug = False
-    discard_mismatched_cg = True
-    verbose = False
+    debug = getattr(args, "debug", False)
+    discard_mismatched_cg = getattr(args, "discard_cg_mismatch", True)
+    verbose = getattr(args, "verbose", False) or debug
 
     basecall_fp = None
     gfa_fp = None
@@ -95,8 +93,6 @@ if __name__ == "__main__":
         wd = args.wd
     if "t" in args and args.t:
         thread = int(args.t)
-    if "debug" in args and args.debug:
-        debug = True
 
     if "basecall" in args and args.basecall:
         basecall_fp = args.basecall
@@ -106,9 +102,6 @@ if __name__ == "__main__":
         if not os.path.exists(gfa_fp):
             print("Genome graph file does not exist", file=sys.stderr)
             sys.exit(1)
-
-    if "verbose" in args and args.verbose:
-        verbose = utl.argument_boolean(args.verbose)
 
     if "aligner" in args and args.aligner:
         aligner = args.aligner
@@ -122,19 +115,12 @@ if __name__ == "__main__":
     if "additional_alignment_params" in args and args.additional_alignment_params:
         additional_alignment_params = args.additional_alignment_params
 
-    if "discard_cg_mismatch" in args and args.discard_cg_mismatch:
-        discard_mismatched_cg = utl.argument_boolean(args.discard_cg_mismatch)
-
     if "mapq_threshold" in args and args.mapq_threshold:
         mapq_threshold = int(args.mapq_threshold)
         if mapq_threshold < 0:
             print("Mapq threshold must be greater than 0", file=sys.stderr)
             sys.exit(1)
 
-
-
-    if debug:
-        verbose = True
 
 
     if args.command == 'main':
@@ -195,7 +181,7 @@ if __name__ == "__main__":
         print("MAPQ threshold: ", mapq_threshold, file=sys.stderr)
 
 
-        longread.extract_methylation(gfa_fp, wd, threads=1, debug=False, discard_cg_mismatch=discard_mismatched_cg, verbose=verbose, mapq_threshold=mapq_threshold)
+        longread.extract_methylation(gfa_fp, wd, threads=1, debug=debug, discard_cg_mismatch=discard_mismatched_cg, verbose=verbose, mapq_threshold=mapq_threshold)
 
     else:
         print('No command provided')

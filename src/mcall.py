@@ -5,6 +5,9 @@ import re
 import sys
 import json
 import time
+from array import array
+from itertools import compress
+
 import utility
 
 import multiprocessing
@@ -46,28 +49,30 @@ alignment_csz_tag_insertion = re.compile(r"\+\w")
 
 
 # Basic Helper Functions
+_WALK_ORIENTATION_TABLE = bytes.maketrans(b"<>", b"\xff\x01")
+_WALK_NON_MARKER_BYTES = bytes(byte for byte in range(256) if byte not in b"<>")
+_CG_BASE_MASK = bytes(int(byte in b"CG") for byte in range(256))
+
+
 def alignment_path_parse(path):
-    res = [[], []]
-    element = ""
-    for i in path:
-        if i in "><":
+    segment_ids = path.replace("<", ">").split(">")
+    if not segment_ids[0] and len(segment_ids) > 1:
+        del segment_ids[0]
+        if len(segment_ids) == 1:
+            assert segment_ids[0]
+            return [segment_ids, [1 if path[0] == ">" else -1]]
 
-            if i == ">":
-                res[1].append(1)
-            else:
-                res[1].append(-1)
+    if "" in segment_ids:
+        # Preserve the final field so a trailing marker still fails validation.
+        segment_ids[:-1] = filter(None, segment_ids[:-1])
 
-            if element != "":
-                res[0].append(element)
-                element = ""
-
-        else:
-            element += i
-
-    res[0].append(element)
-    assert len(res[0]) == len(res[1])
-    assert "" not in res[0]
-    return res
+    marker_bytes = path.encode("utf-8", "surrogatepass").translate(
+        _WALK_ORIENTATION_TABLE, _WALK_NON_MARKER_BYTES
+    )
+    orientations = array("b", marker_bytes).tolist()
+    assert len(segment_ids) == len(orientations)
+    assert segment_ids[-1] != ""
+    return [segment_ids, orientations]
 
 
 def cs_tag_parse(alignment_tag):
@@ -235,52 +240,77 @@ def get_best_alignment_from_same_read_pair(
 
         alignment_score = None
         multimapped = False
-
-        for i in [1, 2, 3, 6, 7, 8, 9, 10, 11]:
-            alignment[i] = int(alignment[i])
-        alignment[5] = alignment_path_parse(alignment[5])
-        segment_list = alignment[5][0]
-        for si in range(len(segment_list)):
-            segmentID = segment_list[si]
-            # print(segmentID, node_replacement_dict)
-            if segmentID in node_replacement_dict:
-                segment_list[si] = node_replacement_dict[segmentID]
-                # print("Replace: ", segmentID, node_replacement_dict[segmentID])
-        
-
         for tag in alignment[12:]:
-
-
-            if tag.startswith("AS:i:"):
-                # Getting the original
+            prefix = tag[:5]
+            if prefix == "AS:i:":
                 alignment_score = int(tag[5:])
-
-            if tag.startswith("mp:i:"):
-                # Getting the original
-                mpi = int(tag[5:])
-                if mpi == 1:
-                    multimapped = True
+            elif prefix == "mp:i:" and int(tag[5:]) == 1:
+                multimapped = True
 
         assert alignment_score is not None
 
-        if multimapped:
-            if discard_multimapped:
-                multimapped_count += 1
-                continue
+        # Count multimapped records before applying the confidence filters.
+        if discard_multimapped and multimapped:
+            multimapped_count += 1
+            continue
 
-        low_confidence = False
+        alignment[11] = int(alignment[11])
         if alignment[11] < minimum_mapq:
-            low_confidence = True
-        if alignment[9] < minimum_identity:
-            low_confidence = True
-        if low_confidence:
             low_confidence_count += 1
             continue
+
+        alignment[9] = int(alignment[9])
+        if alignment[9] < minimum_identity:
+            low_confidence_count += 1
+            continue
+
+        for field in (1, 2, 3, 6, 7, 8, 10):
+            alignment[field] = int(alignment[field])
+        alignment[5] = alignment_path_parse(alignment[5])
+        if node_replacement_dict:
+            segments = alignment[5][0]
+            for index, identifier in enumerate(segments):
+                segments[index] = node_replacement_dict.get(identifier, identifier)
 
         best_alignments.append(alignment)
 
     return best_alignments, aligned_count, multimapped_count, low_confidence_count
 
+
+
+def _decode_methylation_tags(tags):
+    alignment_tag = original_bs_read = read_conversion_type = phred_score = None
+    for tag in tags:
+        tag = tag.strip()
+        prefix = tag[:5]
+        if prefix == "cs:Z:":
+            alignment_tag = tag[5:]
+        elif prefix == "os:Z:":
+            original_bs_read = tag[5:]
+        elif prefix == "rc:Z:":
+            read_conversion_type = tag[5]
+        elif prefix == "bq:Z:":
+            phred_score = tag[5:]
+    return alignment_tag, original_bs_read, read_conversion_type, phred_score
+
+
+def _iter_cg_positions(path_seq_portion):
+    mask = path_seq_portion.encode("ascii").translate(_CG_BASE_MASK)
+    return compress(enumerate(path_seq_portion), mask)
+
+
+def _iter_cpg_positions(path_sequence, path_start, path_end):
+    """Yield aligned C and G bases of CpGs, using flanking bases for context."""
+    c_pos = max(0, path_start - 1)
+    while True:
+        c_pos = path_sequence.find("CG", c_pos, path_end + 1)
+        if c_pos == -1:
+            return
+        if c_pos >= path_start:
+            yield c_pos - path_start, "C"
+        if c_pos + 1 < path_end:
+            yield c_pos + 1 - path_start, "G"
+        c_pos += 2
 
 
 def alignment_to_methylation(best_alignments, sequence_dict, cg_only=True, perform_gcall=False, phred_score_threshold=20):
@@ -301,22 +331,7 @@ def alignment_to_methylation(best_alignments, sequence_dict, cg_only=True, perfo
         path = l[5]
         path_start = l[7]
 
-        # Figure out the alignment start and end, but to do that, I need the alignment CS tag
-        alignment_tag = None
-        original_bs_read = None
-        read_conversion_type = None
-        phred_score = None
-        for tag in l[12:]:
-            tag = tag.strip()
-
-            if tag.startswith("cs:Z:"):
-                alignment_tag = tag[5:]
-            if tag.startswith("os:Z:"):
-                original_bs_read = tag[5:]
-            if tag.startswith("rc:Z:"):
-                read_conversion_type = tag[5]
-            if tag.startswith("bq:Z:"):
-                phred_score = tag[5:]
+        alignment_tag, original_bs_read, read_conversion_type, phred_score = _decode_methylation_tags(l[12:])
 
         if alignment_tag is None or original_bs_read is None or read_conversion_type is None:
             error_count += 1
@@ -334,7 +349,7 @@ def alignment_to_methylation(best_alignments, sequence_dict, cg_only=True, perfo
             segmentID = path[0][pi]
             seq = sequence_dict[segmentID]
             if path[1][pi] < 0:
-                seq = seq.translate(str.maketrans("ACGT", "TGCA"))[::-1]
+                seq = utility.sequence_reverse_complement(seq)
             path_sequences.append(seq)
         path_sequence = "".join(path_sequences)
 
@@ -343,6 +358,16 @@ def alignment_to_methylation(best_alignments, sequence_dict, cg_only=True, perfo
         bs_read_portion = original_bs_read[query_start:query_end]
         phred_score_portion = phred_score[query_start:query_end]
 
+        # Check the inputs before reconstruction inserts paired gap spaces.
+        can_prefilter = (
+            0 <= path_start <= path_end <= len(path_sequence)
+            and path_seq_portion.isascii()
+            and len(bs_read_portion) == len(phred_score_portion)
+            and phred_score_portion.isascii()
+            and phred_score_portion.isprintable()
+            and " " not in bs_read_portion
+            and " " not in phred_score_portion
+        )
 
         # Reconstruct the alignment
         for indel in indels:
@@ -442,7 +467,15 @@ def alignment_to_methylation(best_alignments, sequence_dict, cg_only=True, perfo
         # print(path_sequences)
         # print(path_original_sequence)
 
-        for i, ref_base in enumerate(path_seq_portion):
+        if not can_prefilter:
+            positions = enumerate(path_seq_portion)
+        elif cg_only and not perform_gcall:
+            positions = _iter_cpg_positions(path_sequence, path_start, path_end)
+        else:
+            # Genotyping can use C and G outside CpG context.
+            positions = _iter_cg_positions(path_seq_portion)
+
+        for i, ref_base in positions:
             path_pos = i + path_start
             # ref_base = path_seq_portion[i]
 
@@ -461,7 +494,7 @@ def alignment_to_methylation(best_alignments, sequence_dict, cg_only=True, perfo
                 # For both genotype and methylation calling
                 continue
 
-            if ref_base not in "CG":
+            if not can_prefilter and ref_base not in "CG":
                 continue
 
             interesting = [False, False]
@@ -828,8 +861,7 @@ def gfa_worker(pid, gfa_fp, input_queue, output_queue, batch_size=4096):
 
 
     print(f"GFA Worker started", file=sys.stderr)
-    gfa_instance = gfa.GraphicalFragmentAssemblyMemory()
-    gfa_instance.parse(gfa_fp)
+    sequences = gfa.load_segment_sequences(gfa_fp)
     print(f"GFA Worker finished parsing GFA", file=sys.stderr)
 
     wct.start()
@@ -844,7 +876,7 @@ def gfa_worker(pid, gfa_fp, input_queue, output_queue, batch_size=4096):
             segments = set(best_alignments[0][5][0])
             for best_alignment in best_alignments[1:]:
                 segments = segments.union(set(best_alignment[5][0]))
-            sequence_dict = gfa_instance.get_sequences_by_segment_ID(segments)
+            sequence_dict = {segment_id: sequences[segment_id] for segment_id in segments}
 
             wct.count()
 
@@ -1516,7 +1548,7 @@ def mcall_main(
         # Each process takes roughly 5gb of memory, using too many processes will cause high memory usage
         cpu_count = 10
 
-    extraction_merge_and_cleanup_mp(work_dir, cpu_count, max_pid=100, coverage_threshold=3)
+    extraction_merge_and_cleanup_mp(work_dir, cpu_count, max_pid=process_count, coverage_threshold=3)
 
     if cg_only and genotyping_cytosine:
         cytosine_CG_validation(index_prefix, work_dir)

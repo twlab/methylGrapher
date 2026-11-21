@@ -62,12 +62,21 @@ if __name__ == "__main__":
         arg = args.pop(0)
         if arg.startswith("-"):
             key = arg[1:]
+            if not args:
+                sys.exit(f"{arg} requires a value")
             value = args.pop(0)
             kvargs[key] = value
         else:
             print(f"Unknown argument: {arg}\n\n")
             print(help.help_text())
             sys.exit(1)
+
+    for option in ("discard_multimapped", "cg_only", "genotyping_cytosine", "compress", "directional", "trim"):
+        if option in kvargs:
+            try:
+                kvargs[option] = utility.parse_bool(kvargs[option])
+            except ValueError as error:
+                sys.exit(f"-{option}: {error}")
 
     if "thread" in kvargs:
         thread = int(kvargs["thread"])
@@ -86,16 +95,16 @@ if __name__ == "__main__":
     minimum_identity = 20
     minimum_mapq = 0
     batch_size = 4096
-    discard_multimapped = True
-    cg_only = True
-    genotyping_cytosine = False
+    discard_multimapped = kvargs.get("discard_multimapped", True)
+    cg_only = kvargs.get("cg_only", True)
+    genotyping_cytosine = kvargs.get("genotyping_cytosine", False)
     index_prefix = None
 
     fq1 = None
     fq2 = None
 
-    compress = False
-    directional = True
+    compress = kvargs.get("compress", False)
+    directional = kvargs.get("directional", True)
 
 
     if "work_dir" in kvargs:
@@ -105,12 +114,6 @@ if __name__ == "__main__":
         minimum_identity = int(kvargs["minimum_identity"])
     if "minimum_mapq" in kvargs:
         minimum_mapq = int(kvargs["minimum_mapq"])
-    if "discard_multimapped" in kvargs:
-        discard_multimapped = kvargs["discard_multimapped"].lower() in "yestrue"
-    if "cg_only" in kvargs:
-        cg_only = kvargs["cg_only"].lower() in "yestrue"
-    if "genotyping_cytosine" in kvargs:
-        genotyping_cytosine = kvargs["genotyping_cytosine"].lower() in "yestrue"
     if "batch_size" in kvargs:
         batch_size = int(kvargs["batch_size"])
     if "index_prefix" in kvargs:
@@ -120,21 +123,6 @@ if __name__ == "__main__":
         fq1 = kvargs["fq1"]
     if "fq2" in kvargs:
         fq2 = kvargs["fq2"]
-
-    if "compress" in kvargs:
-        compress = kvargs.get("compress", "N")
-        if compress.lower() == "y":
-            compress = True
-        else:
-            compress = False
-
-    if "directional" in kvargs:
-        directional = kvargs.get("directional", "Y")
-        if directional.lower() == "y":
-            directional = True
-        else:
-            directional = False
-
 
     assert minimum_identity >= 0
     assert minimum_mapq >= 0
@@ -170,32 +158,23 @@ if __name__ == "__main__":
         else:
             freport.write(f"Insert lambda phage genome into genome graph as segment: {lambda_segment_id}\n")
 
-        graph_trim_flag = kvargs.get("trim", "N").lower() in "yestrue"
+        graph_trim_flag = kvargs.get("trim", False)
 
 
-        if graph_trim_flag:
-            g = gfa.GraphicalFragmentAssemblyMemory()
-            g.parse(original_gfa_with_lambda, keep_link=True)
-            g.write_converted(gfa_c2t, "C", "T", SNV_trim=graph_trim_flag)
-
-            del g
-
-            g = gfa.GraphicalFragmentAssemblyMemory()
-            g.parse(original_gfa_with_lambda, keep_link=True)
-            g.write_converted(gfa_g2a, "G", "A", SNV_trim=graph_trim_flag)
-
-            del g
-
-        else:
-            utility.gfa_converter(original_gfa_with_lambda, prefix+".wl", compress=False)
-
+        if not graph_trim_flag:
+            utility.gfa_converter(original_gfa_with_lambda, prefix + ".wl", compress=False)
 
         g = gfa.GraphicalFragmentAssemblyMemory()
         g.parse(original_gfa_with_lambda, keep_link=True)
 
+        if graph_trim_flag:
+            g.write_converted(gfa_c2t, "C", "T", SNV_trim=True)
+            g.write_converted(gfa_g2a, "G", "A", SNV_trim=True)
+
         replacement_ndoes = {}
         replacement_ndoes["CT"] = g.get_replacement_SNV("C", "T")
         replacement_ndoes["GA"] = g.get_replacement_SNV("G", "A")
+        del g
 
         with open(prefix + ".wl.node.replacement.json", "w") as nr_json_fh:
             json.dump(replacement_ndoes, nr_json_fh, indent=4)
@@ -308,7 +287,7 @@ if __name__ == "__main__":
         found_vg_binary, log = utility.vg_binary_check(vg_path=vg_path)
         print(log)
 
-        sys.exit(0)
+        sys.exit(0 if found_vg_binary else 1)
 
 
 

@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import sqlite3
+from functools import lru_cache
 
 
 
@@ -135,6 +136,19 @@ class GraphicalFragmentAssemblyAbstract(object):
 
 
 
+
+
+def _segment_sequences(gfa_file):
+    with open(gfa_file) as graph:
+        for line in graph:
+            if line.startswith("S\t"):
+                fields = line.rstrip("\r\n").split("\t", 3)
+                yield fields[1], fields[2]
+
+
+def load_segment_sequences(gfa_file):
+    """Load the original sequence for each GFA segment ID."""
+    return dict(_segment_sequences(gfa_file))
 
 
 # Store entire GFA in memory
@@ -272,77 +286,73 @@ class GraphicalFragmentAssemblyMemory(GraphicalFragmentAssemblyAbstract):
 
 
 class GraphicalFragmentAssemblyMemorySegmentOptimized(GraphicalFragmentAssemblyAbstract):
-
-    def __init__(self):
-        super().__init__()
+    # Keep the prefix literal so that "node01", "001", and "1" stay distinct.
+    _suffixes = tuple(str(i).zfill(2) for i in range(100))
+    _offsets = {suffix: i for i, suffix in enumerate(_suffixes)}
+    _bases = {base: base.upper() for base in "ACGTacgt"}
 
     def clear(self):
-        self._numeric_segment_ID = False
+        self._blocks = {}
         self._segment = {}
-        self._SN_segments = {
-            "A": set(),
-            "T": set(),
-            "C": set(),
-            "G": set(),
-        }
-
+        self._lookup = self._segment.__getitem__
         self._original_gfa_path = ""
 
     def parse(self, gfa_file, keep_tag=False, keep_link=False):
-        if keep_link:
-            raise NotImplementedError
-        if keep_tag:
+        if keep_tag or keep_link:
             raise NotImplementedError
         self._original_gfa_path = gfa_file
+        blocks = self._blocks
+        other = self._segment
+        # Earlier lookups can be cached when parse() is used to append a graph.
+        self._lookup = self._packed_lookup(blocks, other)
+        for name, sequence in _segment_sequences(gfa_file):
+            base = self._bases.get(sequence) if len(sequence) == 1 else None
+            slot = self._offsets.get(name[-2:]) if base or blocks else None
+            if slot is not None:
+                prefix = name[:-2]
+                page = blocks.get(prefix)
+                if page is None and base:
+                    # A pair of neighboring singletons justifies a shared
+                    # page. Isolated names retain a plain dictionary lookup.
+                    neighbor_slot = slot ^ 1
+                    neighbor_name = prefix + self._suffixes[neighbor_slot]
+                    neighbor = other.get(neighbor_name)
+                    if neighbor is not None and len(neighbor) == 1 and neighbor in self._bases:
+                        page = blocks[prefix] = bytearray(100)
+                        page[neighbor_slot] = ord(other.pop(neighbor_name))
+                if page is not None:
+                    if base:
+                        page[slot] = ord(base)
+                        other.pop(name, None)
+                        continue
+                    # The latest S record wins, including singleton -> long.
+                    page[slot] = 0
+            other[name] = base if base is not None else sequence.upper()
 
-        """
-        Well, it does take less memory, but it is slower in look up
-        numeric_segment_ID = True
-        for l in open(gfa_file):
-            if not l.startswith("S"):
-                continue
-            l = l.strip().split("\t")
-            rt, segID, seq, *tags = l
+        if not blocks:
+            self._lookup = other.__getitem__
 
-            try:
-                int(segID)
-            except ValueError:
-                numeric_segment_ID = False
-                break
+    @classmethod
+    def _packed_lookup(cls, blocks, other):
+        # Nearby alignments often reuse the same IDs. Cache a bounded working
+        # set so that repeated visits only require a dictionary lookup.
+        @lru_cache(maxsize=4096)
+        def lookup(name):
+            if isinstance(name, str):
+                slot = cls._offsets.get(name[-2:])
+                if slot is not None:
+                    page = blocks.get(name[:-2])
+                    if page is not None and page[slot]:
+                        return chr(page[slot])
+            return other[name]
+        return lookup
 
-        self._numeric_segment_ID = numeric_segment_ID
-        """
-
-        for l in open(gfa_file):
-            if not l.startswith("S"):
-                continue
-
-            l = l.strip().split("\t")
-
-            rt, segID, seq, *tags = l
-
-            #if self._numeric_segment_ID:
-            #    segID = int(segID)
-            seq = seq.upper()
-
-            if seq in self._SN_segments:
-                self._SN_segments[seq].add(segID)
-            else:
-                self._segment[segID] = seq
-
-
-
-    def get_sequence_by_segment_ID(self, segment_ID):
-        for sn in "ATCG":
-            if segment_ID in self._SN_segments[sn]:
-                return sn
-        return self._segment[segment_ID]
+    def get_sequence_by_segment_ID(self, name):
+        return self._lookup(name)
 
     def get_sequences_by_segment_ID(self, segment_IDs):
-        res = {}
-        for sID in segment_IDs:
-            res[sID] = self.get_sequence_by_segment_ID(sID)
-        return res
+        lookup = self._lookup
+        return {name: lookup(name) for name in segment_IDs}
 
     def get_sequence_length_by_segment_ID(self, segment_ID):
         return len(self.get_sequence_by_segment_ID(segment_ID))
@@ -661,6 +671,9 @@ class GraphicalFragmentAssemblySQL(GraphicalFragmentAssemblyAbstract):
 
 
 def add_lambda_genome_to_gfa(igfa, ogfa, lambda_ref):
+    if os.path.exists(ogfa) and os.path.samefile(igfa, ogfa):
+        raise ValueError("Input and output GFA must be different files")
+
     figfa = open(igfa)
     fogfa = open(ogfa, "w")
 

@@ -51,7 +51,8 @@ def alignment_clenup(work_dir):
     return
 
 
-def alignment(work_dir="./", index_prefix="", output_format="gaf", thread=1, directional=True, compress=True, vg_path="vg"):
+def alignment(work_dir="./", index_prefix="", output_format="gaf", thread=1,
+              directional=True, compress=True, vg_path="vg", single_end=False):
     index_prefix_ct = index_prefix + ".wl.C2T"
     index_prefix_ga = index_prefix + ".wl.G2A"
 
@@ -93,7 +94,7 @@ def alignment(work_dir="./", index_prefix="", output_format="gaf", thread=1, dir
                     index_prefix = index_prefix_ct
 
                 giraffe_input = f"-f {fq1}"
-                if os.path.exists(fq2):
+                if not single_end and os.path.exists(fq2):
                     giraffe_input += f" -f {fq2}"
 
                 alignment_log = f"{work_dir}/alignment.Ref_{ref_type}.R1_{read_type1}.R2_{read_type2}.log"
@@ -146,7 +147,7 @@ def alignment(work_dir="./", index_prefix="", output_format="gaf", thread=1, dir
                         continue
 
                     # Just to split alignment to multiple files, reduce memory usage for sorting
-                    ind = int(l[0].split("_")[2])
+                    ind = int(l[0].rsplit("_", 3)[2])
                     alignment_out_fh = alignment_outs[ind]
                     alignment_out_fh.write(line)
 
@@ -174,7 +175,7 @@ def tmp_gaf_processing(tmp_gaf_fp):
             l = l.strip().split('\t')
             newl = l[:]
 
-            query_name_complex = l[0].split('_')
+            query_name_complex = l[0].rsplit('_', 3)
             query_name = query_name_complex[0]
             read_conversion = query_name_complex[1][0] + query_name_complex[1][2]
             original_seq = query_name_complex[3]
@@ -193,7 +194,8 @@ def tmp_gaf_processing(tmp_gaf_fp):
                     pop_i = j
 
             assert not (r1 and r2)
-            newl.pop(pop_i)
+            if pop_i != -1:
+                newl.pop(pop_i)
 
             ri = 1 if r1 else 2
             ri_tag = f'ri:i:{ri}'
@@ -379,7 +381,8 @@ def alignment_main(fq1, fq2, work_dir, index_prefix, compress=True, thread=1, di
               thread=thread,
               directional=directional,
               compress=compress,
-              vg_path=vg_path)
+              vg_path=vg_path,
+              single_end=fq2 is None)
 
     alignment_merge_main(work_dir, worker_num=thread)
 

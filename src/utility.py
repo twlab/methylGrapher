@@ -33,8 +33,33 @@ def phred_to_prob(qual_char):
     return phred_lookup_prob[qual_char]
 
 
+_reverse_complement_table = str.maketrans("ACGTN", "TGCAN")
+
+
 def sequence_reverse_complement(seq):
-    return seq.translate(str.maketrans("ACGTN", "TGCAN"))[::-1]
+    return seq.translate(_reverse_complement_table)[::-1]
+
+
+def parse_bool(value):
+    normalized = value.strip().lower()
+    if normalized in ("true", "t", "yes", "y", "1"):
+        return True
+    if normalized in ("false", "f", "no", "n", "0"):
+        return False
+    raise ValueError(f"Expected Y/N, yes/no, true/false, or 1/0, got {value!r}")
+
+
+def decode_tags(tags):
+    """Decode NAME:TYPE:VALUE tags, keeping the last occurrence of each name."""
+    decoded = {}
+    for tag in tags:
+        name, tag_type, value = tag.split(":", 2)
+        if tag_type == "i":
+            value = int(value)
+        elif tag_type == "f":
+            value = float(value)
+        decoded[name] = [tag_type, value]
+    return decoded
 
 
 # Read methylGrapher result
@@ -123,14 +148,7 @@ class Utility(object):
             res += new_nt
         return res
 
-    @staticmethod
-    def argument_boolean(arg):
-        if arg.lower() in ['true', 't', 'yes', 'y']:
-            return True
-        elif arg.lower() in ['false', 'f', 'no', 'n']:
-            return False
-        else:
-            raise Exception(f"Invalid boolean argument: {arg}")
+    argument_boolean = staticmethod(parse_bool)
 
 
 def gfa_converter(input_gfa, output_file_prefix, compress=True, thread=1):
@@ -320,14 +338,11 @@ def get_all_cpg_from_graph(gfa_fp, out_fp):
     cpg_list_file_handle = open(cpg_list_file_path, "w")
 
     within_seg_cpg_index = 0
-    within_seg_cytosines = set()
     for segID in gfa_simple_object._segment:
         seq = gfa_simple_object._segment[segID]
 
-        for pos in range(len(seq)):
-            context = seq[pos:pos + 2]
-            if context != "CG":
-                continue
+        pos = seq.find("CG")
+        while pos != -1:
 
             cpg_type = "Other"
             isref = segID in gfa_simple_object._hg38_segments
@@ -342,12 +357,8 @@ def get_all_cpg_from_graph(gfa_fp, out_fp):
             line_str = "C" + "\t".join(map(str, line)) + "\n"
             cpg_list_file_handle.write(line_str)
 
-            p1 = (segID, pos)
-            p2 = (segID, pos + 1)
-
             within_seg_cpg_index += 1
-            within_seg_cytosines.add(p1)
-            within_seg_cytosines.add(p2)
+            pos = seq.find("CG", pos + 1)
 
     agct_reverse_complement = {
         "A": "T",
@@ -358,7 +369,6 @@ def get_all_cpg_from_graph(gfa_fp, out_fp):
 
     aaa, bbb = 0, 0
     edge_cpg_index = 0
-    edge_cytosines = set()
     for segID1 in gfa_simple_object._link_forward:
         for segID2 in gfa_simple_object._link_forward[segID1]:
             dir1, dir2 = gfa_simple_object._link_forward[segID1][segID2]
@@ -429,8 +439,6 @@ def get_all_cpg_from_graph(gfa_fp, out_fp):
             cpg_list_file_handle.write(line_str)
 
             edge_cpg_index += 1
-            edge_cytosines.add(p1)
-            edge_cytosines.add(p2)
 
     cpg_list_file_handle.close()
 
@@ -537,7 +545,7 @@ def fastq_converter_worker_function(input_fastq_fp, output_fastq_fp, conversion_
         elif i % 4 == 2:
             assert l.strip() == "+"
         elif i % 4 == 3:
-            phred = l.strip().upper()
+            phred = l.strip()
 
     # Edge case. The last read
     if " " in original_query_name:
@@ -627,12 +635,14 @@ def estimate_conversion_rate(index_prefix, work_dir):
     with open(graph_methyl_fp) as graph_methyl_fh:
         for l in graph_methyl_fh:
             l = l.strip().split()
-            if l[0] != lambda_segment_id:
+            if not l or l[0] != lambda_segment_id:
                 continue
 
             context = l[3]
             unmet = int(l[4])
             cov = int(l[6])
+            if cov == 0:
+                continue
 
             if context not in conversion_rate_by_context:
                 conversion_rate_by_context[context] = [0, 0]
@@ -651,7 +661,7 @@ def estimate_conversion_rate(index_prefix, work_dir):
 
         res[context] = conversion_rate_by_context[context]
 
-    res["overall"] = unmet_total / cov_total
+    res["overall"] = unmet_total / cov_total if cov_total else None
 
     return res
 
@@ -659,7 +669,8 @@ def estimate_conversion_rate(index_prefix, work_dir):
 def estimate_conversion_rate_print(index_prefix, work_dir):
     conversion_rate = estimate_conversion_rate(index_prefix, work_dir)
 
-    overall = conversion_rate["overall"] * 100
+    overall_rate = conversion_rate["overall"]
+    overall = "Not available" if overall_rate is None else overall_rate * 100
     cg_cr  = "Not available"
     chg_cr = "Not available"
     chh_cr = "Not available"
